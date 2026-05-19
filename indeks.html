@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mistrz Ortografii - gra dla Stasia</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; color: #fff; }
+  .app { width: 100%; max-width: 560px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 24px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pop { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+  .title { font-size: 32px; text-align: center; margin-bottom: 4px; font-weight: 800; text-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .subtitle { text-align: center; opacity: 0.9; margin-bottom: 24px; font-size: 14px; }
+  .mascot { font-size: 80px; text-align: center; margin: 20px 0; animation: float 3s ease-in-out infinite; }
+
+  .stats-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .stat-card { flex: 1; background: rgba(255,255,255,0.15); padding: 14px; border-radius: 14px; text-align: center; }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-label { font-size: 11px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .menu { display: grid; gap: 12px; }
+  .btn { background: rgba(255,255,255,0.95); color: #4c2a85; border: none; padding: 18px; border-radius: 16px; font-size: 17px; font-weight: 700; cursor: pointer; transition: transform 0.15s; box-shadow: 0 4px 14px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: rgba(255,255,255,0.2); color: #fff; box-shadow: none; }
+  .btn-danger { background: rgba(239,68,68,0.9); color: #fff; }
+  .btn-icon { font-size: 24px; }
+
+  .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 8px; }
+  .badge { background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .badge.chapter { background: rgba(255,215,0,0.25); }
+
+  .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; margin-bottom: 24px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #ffd700, #ff9500); transition: width 0.4s ease; }
+
+  .question-card { background: rgba(255,255,255,0.95); color: #333; padding: 28px 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; animation: pop 0.4s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+  .question-hint { font-size: 13px; color: #888; margin-top: 8px; }
+  .question-word { font-size: 48px; font-weight: 800; color: #4c2a85; line-height: 1.1; letter-spacing: 2px; word-break: break-word; }
+  .question-clue { font-size: 18px; color: #333; line-height: 1.4; font-weight: 500; padding: 8px 0; }
+  .question-prompt { font-size: 13px; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .answers { display: grid; gap: 12px; }
+  .answers.two { grid-template-columns: 1fr 1fr; }
+  .answer-btn { background: rgba(255,255,255,0.95); color: #4c2a85; border: 3px solid transparent; padding: 22px 18px; border-radius: 16px; font-size: 22px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.15); word-break: break-word; }
+  .answer-btn:active { transform: scale(0.95); }
+  .answer-btn:disabled { cursor: default; }
+  .answer-btn.correct { background: #4ade80; color: #fff; border-color: #22c55e; animation: pop 0.3s; }
+  .answer-btn.wrong { background: #ef4444; color: #fff; border-color: #dc2626; animation: shake 0.4s; }
+
+  .feedback { text-align: center; margin-top: 16px; font-size: 16px; font-weight: 600; min-height: 28px; opacity: 0; transition: opacity 0.3s; padding: 0 8px; line-height: 1.4; }
+  .feedback.show { opacity: 1; }
+  .feedback-explanation { font-size: 13px; opacity: 0.9; margin-top: 4px; font-weight: 500; }
+
+  .type-area { background: rgba(255,255,255,0.95); border-radius: 20px; padding: 20px 16px; margin-bottom: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+  .type-input { width: 100%; max-width: 320px; border: 4px solid #cbd5e1; border-radius: 16px; padding: 16px; font-size: 32px; font-weight: 800; text-align: center; color: #4c2a85; background: #fafafa; transition: border-color 0.2s; text-transform: lowercase; }
+  .type-input:focus { outline: none; border-color: #667eea; background: #fff; }
+  .type-input.correct { border-color: #22c55e; background: #ecfdf5; }
+  .type-input.wrong { border-color: #dc2626; background: #fef2f2; animation: shake 0.4s; }
+  .type-hint { font-size: 12px; color: #888; margin-top: 10px; }
+
+  .result-emoji { font-size: 100px; text-align: center; margin: 10px 0 20px; animation: pop 0.5s ease; }
+  .result-title { text-align: center; font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .result-message { text-align: center; font-size: 16px; margin-bottom: 24px; opacity: 0.95; line-height: 1.5; }
+  .result-stats { background: rgba(255,255,255,0.15); padding: 20px; border-radius: 16px; margin-bottom: 20px; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 15px; }
+  .result-row + .result-row { border-top: 1px solid rgba(255,255,255,0.15); }
+  .stars { text-align: center; font-size: 40px; margin: 16px 0; letter-spacing: 8px; }
+
+  .mode-grid { display: grid; gap: 12px; margin-bottom: 16px; }
+  .mode-card { background: rgba(255,255,255,0.95); color: #4c2a85; padding: 16px; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 14px; text-align: left; border: none; width: 100%; transition: transform 0.15s; }
+  .mode-card:active { transform: scale(0.97); }
+  .mode-icon { font-size: 36px; flex-shrink: 0; }
+  .mode-info { flex: 1; }
+  .mode-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .mode-desc { font-size: 12px; opacity: 0.75; }
+
+  .chapter-card { background: rgba(255,255,255,0.95); color: #4c2a85; padding: 18px; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 14px; text-align: left; border: none; width: 100%; transition: transform 0.15s; position: relative; }
+  .chapter-card:active { transform: scale(0.97); }
+  .chapter-icon { font-size: 40px; flex-shrink: 0; }
+  .chapter-info { flex: 1; }
+  .chapter-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+  .chapter-desc { font-size: 12px; opacity: 0.75; }
+  .chapter-progress { font-size: 11px; opacity: 0.6; margin-top: 4px; font-weight: 600; }
+
+  .trophy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .trophy { background: rgba(255,255,255,0.15); padding: 12px 6px; border-radius: 12px; text-align: center; opacity: 0.4; }
+  .trophy.earned { background: rgba(255,215,0,0.25); opacity: 1; }
+  .trophy-icon { font-size: 32px; }
+  .trophy-name { font-size: 10px; margin-top: 4px; font-weight: 600; }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-bg.active { display: flex; }
+  .modal { background: #fff; color: #333; border-radius: 20px; padding: 24px; max-width: 360px; width: 100%; text-align: center; }
+  .modal h2 { color: #4c2a85; margin-bottom: 12px; }
+  .modal p { margin-bottom: 20px; line-height: 1.5; }
+  .modal-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-btn { padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .modal-btn-cancel { background: #f1f5f9; color: #475569; }
+  .modal-btn-confirm { background: #ef4444; color: #fff; }
+
+  .name-input { width: 100%; padding: 18px 20px; border: none; border-radius: 16px; font-size: 18px; font-weight: 600; text-align: center; color: #4c2a85; background: rgba(255,255,255,0.95); box-shadow: 0 4px 14px rgba(0,0,0,0.15); margin-bottom: 16px; }
+  .name-input:focus { outline: 3px solid #ffd700; }
+  .greeting-name { color: #ffd700; }
+
+  .hint-btn { background: rgba(255,215,0,0.25); color: #ffd700; border: 2px solid rgba(255,215,0,0.4); padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 12px; width: 100%; }
+  .hint-btn:active { transform: scale(0.97); }
+  .hint-display { background: rgba(255,215,0,0.2); padding: 10px; border-radius: 10px; margin-top: 10px; font-size: 14px; text-align: center; font-weight: 600; color: #ffd700; }
+
+  .next-btn { background: #ffd700; color: #4c2a85; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 12px; width: 100%; display: none; }
+  .next-btn.show { display: block; animation: pop 0.3s ease; }
+
+  .badge.lives { background: rgba(239,68,68,0.25); font-size: 16px; letter-spacing: 1px; }
+  .badge.lives.danger { background: rgba(239,68,68,0.45); animation: shake 0.5s; }
+
+  .crossword-letter-count { font-size: 13px; color: #666; margin-top: 8px; font-weight: 600; }
+
+  .slot { display: inline-block; min-width: 22px; text-align: center; }
+  .slot.revealed { color: #ffd700; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="screen active" id="welcome">
+    <div class="title">Mistrz Ortografii</div>
+    <div class="subtitle">Hej! Powiedz mi, jak masz na imię</div>
+    <div class="mascot">🦉</div>
+    <input type="text" id="playerNameInput" class="name-input" placeholder="Wpisz swoje imię" maxlength="20" autocomplete="off">
+    <button class="btn" onclick="savePlayerName()"><span class="btn-icon">🚀</span>Zaczynamy!</button>
+  </div>
+
+  <div class="screen" id="home">
+    <div class="title">Mistrz Ortografii</div>
+    <div class="subtitle">Cześć, <span class="greeting-name" id="greetingName">Mistrzu</span>! Co dzisiaj ćwiczymy?</div>
+    <div class="mascot">🦉</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="totalPoints">0</div><div class="stat-label">Punkty</div></div>
+      <div class="stat-card"><div class="stat-value" id="bestStreak">0</div><div class="stat-label">Najlepsza seria</div></div>
+      <div class="stat-card"><div class="stat-value" id="gamesPlayed">0</div><div class="stat-label">Rund</div></div>
+    </div>
+    <div class="menu">
+      <button class="btn" onclick="showScreen('chapters')"><span class="btn-icon">📖</span>Zagraj!</button>
+      <button class="btn btn-secondary" onclick="showScreen('trophies')"><span class="btn-icon">🏆</span>Moje trofea</button>
+      <button class="btn btn-secondary" onclick="changeName()"><span class="btn-icon">✏️</span>Zmień imię</button>
+      <button class="btn btn-danger" onclick="confirmReset()"><span class="btn-icon">🗑️</span>Wyczyść postępy</button>
+    </div>
+  </div>
+
+  <div class="screen" id="chapters">
+    <div class="title" style="font-size:24px">Wybierz temat</div>
+    <div class="subtitle">Każdy rozdział to inne trudne litery</div>
+    <div class="mode-grid">
+      <button class="chapter-card" onclick="selectChapter('rz_z')">
+        <div class="chapter-icon">🌊</div>
+        <div class="chapter-info">
+          <div class="chapter-name">RZ i Ż</div>
+          <div class="chapter-desc">Rzeka czy żaba? 105 słów</div>
+          <div class="chapter-progress" id="progress-rz_z">Rund: 0</div>
+        </div>
+      </button>
+      <button class="chapter-card" onclick="selectChapter('ch_h')">
+        <div class="chapter-icon">🏠</div>
+        <div class="chapter-info">
+          <div class="chapter-name">CH i H</div>
+          <div class="chapter-desc">Chleb czy herbata? 74 słowa</div>
+          <div class="chapter-progress" id="progress-ch_h">Rund: 0</div>
+        </div>
+      </button>
+      <button class="chapter-card" onclick="selectChapter('u_o')">
+        <div class="chapter-icon">⛰️</div>
+        <div class="chapter-info">
+          <div class="chapter-name">U i Ó</div>
+          <div class="chapter-desc">Ulica czy góra? 96 słów</div>
+          <div class="chapter-progress" id="progress-u_o">Rund: 0</div>
+        </div>
+      </button>
+      <button class="chapter-card" onclick="selectChapter('a_e')">
+        <div class="chapter-icon">⭐</div>
+        <div class="chapter-info">
+          <div class="chapter-name">ą i ę</div>
+          <div class="chapter-desc">Ząb czy ręka? 80 słów</div>
+          <div class="chapter-progress" id="progress-a_e">Rund: 0</div>
+        </div>
+      </button>
+    </div>
+    <button class="btn btn-secondary" onclick="showScreen('home')">← Wróć</button>
+  </div>
+
+  <div class="screen" id="modes">
+    <div class="title" style="font-size:24px" id="modesTitle">Wybierz tryb</div>
+    <div class="subtitle">Każdy uczy ortografii inaczej</div>
+    <div class="mode-grid">
+      <button class="mode-card" onclick="startGame('fill')">
+        <div class="mode-icon">✏️</div>
+        <div class="mode-info">
+          <div class="mode-name">Uzupełnij literę</div>
+          <div class="mode-desc">Wpisz brakujące litery w wyrazie</div>
+        </div>
+      </button>
+      <button class="mode-card" onclick="startGame('choose')">
+        <div class="mode-icon">🎯</div>
+        <div class="mode-info">
+          <div class="mode-name">Poprawna pisownia</div>
+          <div class="mode-desc">Wybierz wyraz napisany poprawnie</div>
+        </div>
+      </button>
+      <button class="mode-card" onclick="startGame('crossword')">
+        <div class="mode-icon">🔤</div>
+        <div class="mode-info">
+          <div class="mode-name">Krzyżówka</div>
+          <div class="mode-desc">Odgadnij hasło z zagadki</div>
+        </div>
+      </button>
+    </div>
+    <button class="btn btn-secondary" onclick="showScreen('chapters')">← Wróć</button>
+  </div>
+
+  <div class="screen" id="fillGame">
+    <div class="game-header">
+      <div class="badge chapter" id="fillChapterBadge">🌊 RZ i Ż</div>
+      <div class="badge">⭐ <span id="fillScore">0</span></div>
+      <div class="badge">🔥 <span id="fillStreak">0</span></div>
+      <div class="badge lives" id="fillLives">❤️❤️❤️</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="fillProgressFill" style="width: 0%"></div></div>
+    <div class="question-card">
+      <div class="question-prompt">Uzupełnij brakujące litery</div>
+      <div class="question-word" id="fillWord">g _ _ y b</div>
+      <div class="question-hint" id="fillCounter">Pytanie 1 z 10</div>
+    </div>
+    <div class="type-area">
+      <input type="text" id="fillInput" class="type-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="3">
+      <div class="type-hint">Wpisz brakujące litery</div>
+    </div>
+    <button class="btn" id="fillSubmitBtn" onclick="submitFillAnswer()" style="display:none">✓ Sprawdź</button>
+    <button class="next-btn" id="fillNextBtn" onclick="nextFillQuestion()">Dalej →</button>
+    <div class="feedback" id="fillFeedback"></div>
+    <button class="btn btn-secondary" style="margin-top:14px" onclick="quitGame()">← Wyjdź</button>
+  </div>
+
+  <div class="screen" id="chooseGame">
+    <div class="game-header">
+      <div class="badge chapter" id="chooseChapterBadge">🌊 RZ i Ż</div>
+      <div class="badge">⭐ <span id="chooseScore">0</span></div>
+      <div class="badge">🔥 <span id="chooseStreak">0</span></div>
+      <div class="badge lives" id="chooseLives">❤️❤️❤️</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="chooseProgressFill" style="width: 0%"></div></div>
+    <div class="question-card">
+      <div class="question-prompt">Wybierz wyraz pasujący do opisu</div>
+      <div class="question-clue" id="chooseClue">Rośnie w lesie i ma kapelusz</div>
+      <div class="question-hint" id="chooseCounter">Pytanie 1 z 10</div>
+    </div>
+    <div class="answers two" id="chooseAnswers"></div>
+    <button class="next-btn" id="chooseNextBtn" onclick="nextChooseQuestion()">Dalej →</button>
+    <div class="feedback" id="chooseFeedback"></div>
+    <button class="btn btn-secondary" style="margin-top:14px" onclick="quitGame()">← Wyjdź</button>
+  </div>
+
+  <div class="screen" id="crosswordGame">
+    <div class="game-header">
+      <div class="badge chapter" id="crosswordChapterBadge">🌊 RZ i Ż</div>
+      <div class="badge">⭐ <span id="crosswordScore">0</span></div>
+      <div class="badge">🔥 <span id="crosswordStreak">0</span></div>
+      <div class="badge lives" id="crosswordLives">❤️❤️❤️</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="crosswordProgressFill" style="width: 0%"></div></div>
+    <div class="question-card">
+      <div class="question-prompt">🔤 Zagadka</div>
+      <div class="question-clue" id="crosswordClue">Rośnie w lesie, ma kapelusz</div>
+      <div class="question-word" id="crosswordSlots" style="font-size:32px;letter-spacing:4px;margin-top:14px;color:#888">_ _ _ _ _</div>
+      <div class="crossword-letter-count">Hasło ma <span id="crosswordLetterCount">5</span> liter</div>
+      <div class="question-hint" id="crosswordCounter">Pytanie 1 z 10</div>
+    </div>
+    <div class="type-area">
+      <input type="text" id="crosswordInput" class="type-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-size:24px">
+      <div class="type-hint">Wpisz całe hasło</div>
+    </div>
+    <button class="btn" id="crosswordSubmitBtn" onclick="submitCrosswordAnswer()" style="display:none">✓ Sprawdź</button>
+    <button class="hint-btn" id="crosswordHintBtn" onclick="showCrosswordHint()" style="display:none">💡 Podpowiedź</button>
+    <div class="hint-display" id="crosswordHint" style="display:none"></div>
+    <button class="next-btn" id="crosswordNextBtn" onclick="nextCrosswordQuestion()">Dalej →</button>
+    <div class="feedback" id="crosswordFeedback"></div>
+    <button class="btn btn-secondary" style="margin-top:14px" onclick="quitGame()">← Wyjdź</button>
+  </div>
+
+  <div class="screen" id="results">
+    <div class="result-emoji" id="resultEmoji">🎉</div>
+    <div class="result-title" id="resultTitle">Świetnie!</div>
+    <div class="result-message" id="resultMessage"></div>
+    <div class="stars" id="resultStars">⭐⭐⭐</div>
+    <div class="result-stats">
+      <div class="result-row"><span>Punkty zdobyte</span><span><strong id="finalScore">0</strong></span></div>
+      <div class="result-row"><span>Poprawne odpowiedzi</span><span><strong id="finalCorrect">0 / 0</strong></span></div>
+      <div class="result-row"><span>Najdłuższa seria</span><span><strong id="finalStreak">0</strong> 🔥</span></div>
+    </div>
+    <div class="menu">
+      <button class="btn" onclick="repeatGame()"><span class="btn-icon">🔄</span>Zagraj jeszcze raz</button>
+      <button class="btn btn-secondary" onclick="showScreen('modes')"><span class="btn-icon">🎯</span>Zmień tryb</button>
+      <button class="btn btn-secondary" onclick="showScreen('home')"><span class="btn-icon">🏠</span>Do menu</button>
+    </div>
+  </div>
+
+  <div class="screen" id="trophies">
+    <div class="title" style="font-size:24px">Twoje trofea</div>
+    <div class="subtitle">Zbieraj wszystkie!</div>
+    <div class="trophy-grid" id="trophyGrid"></div>
+    <button class="btn btn-secondary" onclick="showScreen('home')">← Wróć</button>
+  </div>
+
+</div>
+
+<div class="modal-bg" id="confirmModal">
+  <div class="modal">
+    <h2>🗑️ Wyczyścić postępy?</h2>
+    <p>To usunie wszystkie punkty, trofea, statystyki i imię. Czy na pewno?</p>
+    <div class="modal-buttons">
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Anuluj</button>
+      <button class="modal-btn modal-btn-confirm" onclick="doReset()">Tak, wyczyść</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===========================
+// SŁOWA - 4 ROZDZIAŁY
+// ===========================
+
+const WORDS = {
+  rz_z: [
+    // RZ words
+    { w: 'rzeka', a: 'rz', c: 'Płynie przez las i wpada do morza lub jeziora' },
+    { w: 'rzepa', a: 'rz', c: 'Warzywo z ziemi, białe lub fioletowe, lubimy w sałatce' },
+    { w: 'rzecz', a: 'rz', c: 'Ogólne słowo na każdy przedmiot' },
+    { w: 'rząd', a: 'rz', c: 'Siedzą w nim ministrowie i rządzą krajem' },
+    { w: 'rzut', a: 'rz', c: 'Czynność rzucania piłką' },
+    { w: 'rzodkiewka', a: 'rz', c: 'Czerwone warzywo, małe i ostre, jemy do kanapki' },
+    { w: 'rzęsa', a: 'rz', c: 'Włosek na brzegu powieki' },
+    { w: 'drzewo', a: 'rz', c: 'Ma pień, gałęzie i liście, rośnie w lesie i parku' },
+    { w: 'drzwi', a: 'rz', c: 'Zamykamy je, gdy wychodzimy z pokoju' },
+    { w: 'drzazga', a: 'rz', c: 'Mały ostry kawałek drewna wbity w palec' },
+    { w: 'trzy', a: 'rz', c: 'Liczba między dwójką a czwórką' },
+    { w: 'trzeci', a: 'rz', c: 'Kolejność po drugim, przed czwartym' },
+    { w: 'trzeba', a: 'rz', c: 'Słowo wyrażające konieczność: ... iść do sklepu' },
+    { w: 'trzask', a: 'rz', c: 'Głośny dźwięk pękającego drewna' },
+    { w: 'trzcina', a: 'rz', c: 'Wysoka roślina rosnąca przy wodzie' },
+    { w: 'trzepak', a: 'rz', c: 'Metalowa konstrukcja na podwórku do trzepania dywanów' },
+    { w: 'grzyb', a: 'rz', c: 'Rośnie w lesie, ma kapelusz i nóżkę, zbieramy go jesienią' },
+    { w: 'grzech', a: 'rz', c: 'Coś złego, co się zrobiło' },
+    { w: 'grzeczny', a: 'rz', c: 'Tak mówimy o dziecku, które słucha rodziców' },
+    { w: 'grzebień', a: 'rz', c: 'Przedmiot do czesania włosów' },
+    { w: 'grzejnik', a: 'rz', c: 'Urządzenie na ścianie, które ogrzewa pokój zimą' },
+    { w: 'grzmot', a: 'rz', c: 'Głośny huk podczas burzy' },
+    { w: 'grzechotka', a: 'rz', c: 'Zabawka małego dziecka, wydaje dźwięki' },
+    { w: 'krzak', a: 'rz', c: 'Niska roślina z gałązkami, np. róży' },
+    { w: 'krzesło', a: 'rz', c: 'Na tym siedzimy przy stole lub biurku' },
+    { w: 'krzyk', a: 'rz', c: 'Głośny dźwięk z ust, gdy się boimy' },
+    { w: 'krzywda', a: 'rz', c: 'Gdy ktoś nas skrzywdzi, wyrządza nam...' },
+    { w: 'krzewy', a: 'rz', c: 'Małe rośliny w ogrodzie, większe od ziół' },
+    { w: 'przez', a: 'rz', c: 'Słowo: balonik wleciał ... okno' },
+    { w: 'przed', a: 'rz', c: 'Słowo: stań ... tablicą' },
+    { w: 'przy', a: 'rz', c: 'Słowo: siedź ... mnie' },
+    { w: 'przybory', a: 'rz', c: 'Linijka, ołówek, gumka — szkolne...' },
+    { w: 'przyroda', a: 'rz', c: 'Lasy, rzeki, góry, zwierzęta — to wszystko jedno słowo' },
+    { w: 'przygoda', a: 'rz', c: 'Ciekawa historia, która nam się zdarzyła' },
+    { w: 'przerwa', a: 'rz', c: 'Czas odpoczynku między lekcjami' },
+    { w: 'brzeg', a: 'rz', c: 'Skraj rzeki, jeziora lub morza' },
+    { w: 'brzoza', a: 'rz', c: 'Białe drzewo z czarnymi plamkami' },
+    { w: 'brzuch', a: 'rz', c: 'Część ciała, tu mieszka żołądek' },
+    { w: 'brzoskwinia', a: 'rz', c: 'Żółto-czerwony owoc z pestką w środku' },
+    { w: 'wrzos', a: 'rz', c: 'Mały fioletowy kwiat rosnący na wrzosowisku' },
+    { w: 'wrzesień', a: 'rz', c: 'Miesiąc, w którym zaczyna się rok szkolny' },
+    { w: 'wrzawa', a: 'rz', c: 'Głośne zamieszanie wielu ludzi naraz' },
+    { w: 'chrzan', a: 'rz', c: 'Biała ostra roślina, jemy z wędliną na Wielkanoc' },
+    { w: 'morze', a: 'rz', c: 'Duży zbiornik słonej wody, np. Bałtyk' },
+    { w: 'burza', a: 'rz', c: 'Deszcz z błyskawicami i grzmotem' },
+    { w: 'orzech', a: 'rz', c: 'Twardy owoc z pestką, lubi go wiewiórka' },
+    { w: 'marzec', a: 'rz', c: 'Trzeci miesiąc roku, zaczyna się wiosna' },
+    { w: 'wierzba', a: 'rz', c: 'Drzewo z długimi zwisającymi gałązkami nad wodą' },
+    { w: 'zwierzę', a: 'rz', c: 'Kot, pies, koń, żyrafa — wszystkie to...' },
+    { w: 'lekarz', a: 'rz', c: 'Osoba, do której idziemy, gdy jesteśmy chorzy' },
+    { w: 'pisarz', a: 'rz', c: 'Osoba, która pisze książki' },
+    { w: 'kucharz', a: 'rz', c: 'Osoba, która gotuje w restauracji' },
+    { w: 'marynarz', a: 'rz', c: 'Osoba, która pływa na statku' },
+    // Ż words
+    { w: 'żaba', a: 'ż', c: 'Zielone zwierzę, które skacze i kumka przy stawie' },
+    { w: 'żuk', a: 'ż', c: 'Mały czarny chrząszcz, często widać go na drodze' },
+    { w: 'żyrafa', a: 'ż', c: 'Najwyższe zwierzę świata, żyje w Afryce' },
+    { w: 'żółw', a: 'ż', c: 'Zwierzę z zieloną lub brązową skorupą, chodzi wolno' },
+    { w: 'żelazko', a: 'ż', c: 'Urządzenie do prasowania ubrań' },
+    { w: 'żelazo', a: 'ż', c: 'Metal, z którego robi się bramy i narzędzia' },
+    { w: 'żyto', a: 'ż', c: 'Zboże, z którego pieczemy chleb razowy' },
+    { w: 'żal', a: 'ż', c: 'Smutne uczucie, gdy czegoś żałujemy' },
+    { w: 'żaden', a: 'ż', c: 'Nikt z grupy, ani jeden' },
+    { w: 'żart', a: 'ż', c: 'Coś śmiesznego, co mówimy dla zabawy' },
+    { w: 'żniwa', a: 'ż', c: 'Zbiory zboża latem, kombajny jeżdżą po polu' },
+    { w: 'żywy', a: 'ż', c: 'Ktoś lub coś, kto żyje, nie umarł' },
+    { w: 'żeby', a: 'ż', c: 'Słowo: chcę, ... było ładnie' },
+    { w: 'żona', a: 'ż', c: 'Kobieta, która jest zamężna' },
+    { w: 'żebro', a: 'ż', c: 'Kość w klatce piersiowej' },
+    { w: 'żołądek', a: 'ż', c: 'Narząd wewnętrzny, do którego idzie jedzenie' },
+    { w: 'żuraw', a: 'ż', c: 'Duży ptak z długą szyją albo maszyna budowlana' },
+    { w: 'żurawina', a: 'ż', c: 'Czerwone kwaśne jagody, dobre na kompot' },
+    { w: 'żółty', a: 'ż', c: 'Kolor słońca i cytryny' },
+    { w: 'każdy', a: 'ż', c: '... uczeń dostał zadanie — wszyscy bez wyjątku' },
+    { w: 'ważny', a: 'ż', c: 'Coś istotnego, o czym pamiętamy' },
+    { w: 'możliwy', a: 'ż', c: 'Coś, co może się zdarzyć' },
+    { w: 'pożar', a: 'ż', c: 'Kiedy coś się pali, straż gasi...' },
+    { w: 'pożyczka', a: 'ż', c: 'Pieniądze pożyczone z banku' },
+    { w: 'dróżka', a: 'ż', c: 'Wąska ścieżka przez las lub ogród' },
+    { w: 'wróżka', a: 'ż', c: 'Postać z bajki, która spełnia życzenia różdżką' },
+    { w: 'ważka', a: 'ż', c: 'Owad z długim ciałem i przezroczystymi skrzydłami' },
+    { w: 'leżeć', a: 'ż', c: 'Być w pozycji poziomej, np. w łóżku' },
+    { w: 'jeżyna', a: 'ż', c: 'Czarne jagody rosnące na kolczastych krzewach' },
+    { w: 'jeż', a: 'ż', c: 'Małe zwierzę pokryte kolcami' },
+    { w: 'nóż', a: 'ż', c: 'Narzędzie z ostrzem, kroimy nim chleb' },
+    { w: 'straż', a: 'ż', c: 'Strażacy to pracownicy ... pożarnej' },
+    { w: 'garaż', a: 'ż', c: 'Tu trzymamy samochód' },
+    { w: 'podróż', a: 'ż', c: 'Wyjazd w dalekie miejsca' },
+    { w: 'bandaż', a: 'ż', c: 'Biały opatrunek na ranę' },
+    { w: 'nożyczki', a: 'ż', c: 'Tymi przyborami wycinamy z papieru' },
+    { w: 'nożyk', a: 'ż', c: 'Mały nóż' },
+    { w: 'wieża', a: 'ż', c: 'Wysoka smukła budowla, np. Eiffla w Paryżu' },
+    { w: 'łyżka', a: 'ż', c: 'Tym nabieramy zupę' },
+    { w: 'łyżwa', a: 'ż', c: 'Wkładamy na buty i jeździmy po lodzie' },
+    { w: 'piżama', a: 'ż', c: 'Ubieramy to do spania' },
+    { w: 'dużo', a: 'ż', c: 'Bardzo wiele, nie mało' },
+    { w: 'duży', a: 'ż', c: 'Wielki, nie mały' },
+    { w: 'różowy', a: 'ż', c: 'Kolor mieszanki białego i czerwonego' },
+    { w: 'różny', a: 'ż', c: 'Inny, odmienny od czegoś' },
+    { w: 'leżak', a: 'ż', c: 'Składany fotel do leżenia na plaży' },
+    { w: 'papużka', a: 'ż', c: 'Mała papuga, kolorowy ptaszek w klatce' },
+    { w: 'rożek', a: 'ż', c: 'Rogalik, ciastko w kształcie rogu' },
+    { w: 'żołnierz', a: 'ż', c: 'Osoba służąca w wojsku' },
+    { w: 'może', a: 'ż', c: 'Słowo niepewności: ... jutro przyjdzie' },
+    { w: 'książka', a: 'ż', c: 'Czytamy ją, ma okładkę i strony' },
+    { w: 'książę', a: 'ż', c: 'Syn króla i królowej' },
+  ],
+  ch_h: [
+    // CH words
+    { w: 'chleb', a: 'ch', c: 'Pieczemy go w piekarni, jemy na śniadanie' },
+    { w: 'chłopiec', a: 'ch', c: 'Dziecko płci męskiej' },
+    { w: 'chata', a: 'ch', c: 'Drewniany domek, dawne wiejskie mieszkanie' },
+    { w: 'choinka', a: 'ch', c: 'Zielone drzewko, które ubieramy na Boże Narodzenie' },
+    { w: 'chomik', a: 'ch', c: 'Małe puszyste zwierzątko z woreczkami za policzkami' },
+    { w: 'chustka', a: 'ch', c: 'Kawałek materiału do wycierania nosa' },
+    { w: 'chodnik', a: 'ch', c: 'Wyłożony kamieniami pas przy drodze, po którym chodzimy' },
+    { w: 'chodzić', a: 'ch', c: 'Poruszać się na piechotę' },
+    { w: 'choroba', a: 'ch', c: 'Stan, gdy czujemy się źle i bolą nas różne rzeczy' },
+    { w: 'chory', a: 'ch', c: 'Taki, kto ma chorobę i musi leżeć w łóżku' },
+    { w: 'chować', a: 'ch', c: 'Kłaść coś tak, żeby było trudne do znalezienia' },
+    { w: 'chętny', a: 'ch', c: 'Ktoś, kto chce coś zrobić, chce uczestniczyć' },
+    { w: 'chichot', a: 'ch', c: 'Śmiech, który trudno powstrzymać' },
+    { w: 'chmura', a: 'ch', c: 'Biały lub szary kłąb na niebie' },
+    { w: 'chlew', a: 'ch', c: 'Zabudowanie na wsi, gdzie mieszkają świnie' },
+    { w: 'chłodny', a: 'ch', c: 'Trochę zimny, nie gorący' },
+    { w: 'chaber', a: 'ch', c: 'Niebieski polny kwiat rosnący w zbożu' },
+    { w: 'chałupa', a: 'ch', c: 'Stary drewniany dom na wsi' },
+    { w: 'chwila', a: 'ch', c: 'Krótki moment, sekundka czasu' },
+    { w: 'chwalić', a: 'ch', c: 'Mówić dobre rzeczy o kimś' },
+    { w: 'chwast', a: 'ch', c: 'Niechciana roślina, która rośnie między kwiatami' },
+    { w: 'chwycić', a: 'ch', c: 'Złapać coś ręką' },
+    { w: 'chyba', a: 'ch', c: 'Słowo niepewności: ... jutro będzie ładnie' },
+    { w: 'chytry', a: 'ch', c: 'Przebiegły, sprytny w nie zawsze uczciwy sposób' },
+    { w: 'dach', a: 'ch', c: 'Górna część domu, chroni przed deszczem' },
+    { w: 'mech', a: 'ch', c: 'Zielona miękka roślinka rosnąca na kamieniach' },
+    { w: 'ruch', a: 'ch', c: 'Przemieszczanie się, nie stanie w miejscu' },
+    { w: 'loch', a: 'ch', c: 'Podziemne pomieszczenie w zamku' },
+    { w: 'strach', a: 'ch', c: 'Uczucie, gdy bardzo się boimy' },
+    { w: 'pech', a: 'ch', c: 'Kiedy wszystko idzie nie tak, mamy...' },
+    { w: 'piach', a: 'ch', c: 'Drobnoziarniste ziarenka skały, na plaży' },
+    { w: 'zapach', a: 'ch', c: 'To, co czujemy nosem, np. kwiatów' },
+    { w: 'echo', a: 'ch', c: 'Odbity dźwięk, który wraca do nas w górach' },
+    { w: 'szachy', a: 'ch', c: 'Gra planszowa z królem, hetmanem i pionkami' },
+    { w: 'ucho', a: 'ch', c: 'Narząd słuchu, mamy ich dwa po bokach głowy' },
+    { w: 'mucha', a: 'ch', c: 'Mały latający owad, lata nam nad jedzeniem' },
+    { w: 'cichy', a: 'ch', c: 'Nie głośny, niemal bez dźwięku' },
+    { w: 'suchy', a: 'ch', c: 'Nie mokry, bez wody' },
+    { w: 'głuchy', a: 'ch', c: 'Taki, kto nie słyszy' },
+    { w: 'ruchliwy', a: 'ch', c: 'Taki, kto dużo się porusza' },
+    { w: 'pachnieć', a: 'ch', c: 'Wydzielać zapach, np. kwiat ładnie pachnie' },
+    { w: 'macha', a: 'ch', c: 'Ktoś ... ręką na pożegnanie' },
+    { w: 'chór', a: 'ch', c: 'Grupa śpiewająca razem, np. szkolny...' },
+    { w: 'pchać', a: 'ch', c: 'Popychać coś lub kogoś' },
+    { w: 'cicho', a: 'ch', c: 'Bez głośnych dźwięków' },
+    { w: 'chrzan', a: 'ch', c: 'Biała ostra roślina, jemy na Wielkanoc' },
+    { w: 'chmurny', a: 'ch', c: 'Niebo pełne chmur, ponure' },
+    // H words
+    { w: 'herbata', a: 'h', c: 'Gorący napój z liści, pijemy go w kubku' },
+    { w: 'hamak', a: 'h', c: 'Siatka zawieszona między drzewami do leżenia' },
+    { w: 'hałas', a: 'h', c: 'Głośne, nieprzyjemne dźwięki' },
+    { w: 'historia', a: 'h', c: 'Przedmiot w szkole o dawnych czasach' },
+    { w: 'hotel', a: 'h', c: 'Budynek, gdzie mieszkamy na wakacjach' },
+    { w: 'hymn', a: 'h', c: 'Uroczysta pieśń państwowa' },
+    { w: 'hak', a: 'h', c: 'Metalowy zahaczony element do wieszania' },
+    { w: 'hełm', a: 'h', c: 'Twarda osłona na głowę, noszona przez strażaków' },
+    { w: 'hokej', a: 'h', c: 'Sport grany na lodzie, z kijem i krążkiem' },
+    { w: 'humor', a: 'h', c: 'Dobry nastrój, radość — mamy dobry...' },
+    { w: 'harcerz', a: 'h', c: 'Chłopiec należący do drużyny harcerskiej' },
+    { w: 'harcerka', a: 'h', c: 'Dziewczyna należąca do drużyny harcerskiej' },
+    { w: 'hasło', a: 'h', c: 'Tajne słowo, które otwiera dostęp' },
+    { w: 'hej', a: 'h', c: 'Pozdrowienie na początku rozmowy' },
+    { w: 'helikopter', a: 'h', c: 'Latający pojazd ze śmigłem' },
+    { w: 'hipopotam', a: 'h', c: 'Wielkie szare zwierzę z Afryki, lubi wodę' },
+    { w: 'hol', a: 'h', c: 'Przedpokój, pierwsze pomieszczenie w domu' },
+    { w: 'honor', a: 'h', c: 'Uczciwe, godne zachowanie' },
+    { w: 'herbatnik', a: 'h', c: 'Kruche, słodkie ciasteczko do herbaty' },
+    { w: 'hałaśliwy', a: 'h', c: 'Robiący dużo hałasu' },
+    { w: 'huk', a: 'h', c: 'Bardzo głośny dźwięk wybuchu' },
+    { w: 'hipnoza', a: 'h', c: 'Sen na jawie, w który ktoś wprawia drugą osobę' },
+    { w: 'horyzont', a: 'h', c: 'Linia, gdzie ziemia spotyka się z niebem' },
+    { w: 'haftować', a: 'h', c: 'Robić wzory nicią na materiale' },
+    { w: 'hamburger', a: 'h', c: 'Kanapka z mięsem, popularna w fast foodach' },
+    { w: 'hipoteka', a: 'h', c: 'Kredyt na dom, dłuższa pożyczka' },
+    { w: 'hektar', a: 'h', c: 'Jednostka powierzchni pola lub lasu' },
+  ],
+  u_o: [
+    // Ó words
+    { w: 'góra', a: 'ó', c: 'Wzniesienie terenu, np. Tatry to najwyższe...' },
+    { w: 'wróbel', a: 'ó', c: 'Mały brązowy ptak, często widać go w miastach' },
+    { w: 'królik', a: 'ó', c: 'Małe zwierzę z długimi uszami, lubi marchewkę' },
+    { w: 'ołówek', a: 'ó', c: 'Tym piszemy i rysujemy, można zetrzeć gumką' },
+    { w: 'stół', a: 'ó', c: 'Mebel, przy którym jemy i odrabiamy lekcje' },
+    { w: 'wół', a: 'ó', c: 'Duże zwierzę robocze, ciągnie pług na polu' },
+    { w: 'kółko', a: 'ó', c: 'Okrągły kształt, koło' },
+    { w: 'ogród', a: 'ó', c: 'Teren z kwiatami i warzywami przy domu' },
+    { w: 'lód', a: 'ó', c: 'Zamarznięta woda' },
+    { w: 'ból', a: 'ó', c: 'Uczucie, gdy coś nas boli' },
+    { w: 'dół', a: 'ó', c: 'Zagłębienie w ziemi, dziura' },
+    { w: 'mól', a: 'ó', c: 'Mały owad, który zjada wełniane ubrania' },
+    { w: 'wóz', a: 'ó', c: 'Drewniany pojazd ciągnięty przez konia' },
+    { w: 'wózek', a: 'ó', c: 'Mały pojazd do wożenia małych dzieci' },
+    { w: 'ósmy', a: 'ó', c: 'Kolejność po siódmym' },
+    { w: 'ósemka', a: 'ó', c: 'Liczba 8' },
+    { w: 'późno', a: 'ó', c: 'Nie wcześnie, po wyznaczonej porze' },
+    { w: 'późny', a: 'ó', c: 'Taki, który nadchodzi po czasie' },
+    { w: 'bóbr', a: 'ó', c: 'Duże brązowe zwierzę, buduje tamy na rzekach' },
+    { w: 'wróg', a: 'ó', c: 'Przeciwnik, nieprzyjaciel' },
+    { w: 'wróć', a: 'ó', c: 'Rozkaz: idź z powrotem' },
+    { w: 'żółty', a: 'ó', c: 'Kolor słońca i cytryny' },
+    { w: 'żółw', a: 'ó', c: 'Zwierzę z zieloną skorupą' },
+    { w: 'skóra', a: 'ó', c: 'Zewnętrzna powłoka naszego ciała' },
+    { w: 'córka', a: 'ó', c: 'Dziewczynka w stosunku do swoich rodziców' },
+    { w: 'łódka', a: 'ó', c: 'Mały statek, pływamy nim po jeziorze' },
+    { w: 'główka', a: 'ó', c: 'Mała głowa lub kulka na szpilce' },
+    { w: 'stróż', a: 'ó', c: 'Osoba pilnująca budynku w nocy' },
+    { w: 'próba', a: 'ó', c: 'Ćwiczenie przed spektaklem lub próbowanie czegoś' },
+    { w: 'różowy', a: 'ó', c: 'Kolor mieszanki białego i czerwonego' },
+    { w: 'różny', a: 'ó', c: 'Inny, odmienny od czegoś' },
+    { w: 'podróż', a: 'ó', c: 'Wyjazd w dalekie miejsca' },
+    { w: 'dróżka', a: 'ó', c: 'Wąska ścieżka przez las lub ogród' },
+    { w: 'wróżka', a: 'ó', c: 'Postać z bajki, która spełnia życzenia' },
+    { w: 'królewna', a: 'ó', c: 'Córka króla, bohaterka wielu bajek' },
+    { w: 'królestwo', a: 'ó', c: 'Kraj rządzony przez króla' },
+    { w: 'północ', a: 'ó', c: 'Kierunek świata, przeciwieństwo południa' },
+    { w: 'spółka', a: 'ó', c: 'Firma założona przez kilka osób razem' },
+    { w: 'móc', a: 'ó', c: 'Być w stanie coś zrobić' },
+    { w: 'skrót', a: 'ó', c: 'Krótszy sposób zapisu lub drogi' },
+    { w: 'córeczka', a: 'ó', c: 'Zdrobnienie od córka' },
+    { w: 'podwórko', a: 'ó', c: 'Plac przy domu, gdzie można się bawić' },
+    { w: 'Józef', a: 'ó', c: 'Imię chłopca (wielka litera!)' },
+    { w: 'Łódź', a: 'ó', c: 'Duże miasto w środkowej Polsce' },
+    { w: 'jaskółka', a: 'ó', c: 'Mały czarno-biały ptak, lata nad polami' },
+    { w: 'czółno', a: 'ó', c: 'Wąska łódka z wydrążonego pnia' },
+    { w: 'szczegół', a: 'ó', c: 'Drobny element, mała część czegoś' },
+    { w: 'pióro', a: 'ó', c: 'Element, którym pokryte są ptaki, albo długopis' },
+    // U words
+    { w: 'ulica', a: 'u', c: 'Droga w mieście, przy niej stoją domy' },
+    { w: 'ucho', a: 'u', c: 'Narząd słuchu, mamy ich dwa' },
+    { w: 'burak', a: 'u', c: 'Czerwone warzywo, używamy do barszczu' },
+    { w: 'kura', a: 'u', c: 'Ptak domowy, znosi jajka' },
+    { w: 'kubek', a: 'u', c: 'Naczynie, pijemy z niego herbatę' },
+    { w: 'tulipan', a: 'u', c: 'Wiosenny kwiat na długiej łodydze' },
+    { w: 'usta', a: 'u', c: 'Narząd do jedzenia i mówienia' },
+    { w: 'mucha', a: 'u', c: 'Mały latający owad' },
+    { w: 'buty', a: 'u', c: 'Wkładamy je na nogi' },
+    { w: 'buzia', a: 'u', c: 'Dziecięce słowo na twarz' },
+    { w: 'budka', a: 'u', c: 'Mała skrzynka, np. dla pszczoły' },
+    { w: 'bułka', a: 'u', c: 'Małe okrągłe pieczywo' },
+    { w: 'kurtka', a: 'u', c: 'Okrycie wierzchnie na wiosnę i jesień' },
+    { w: 'kurnik', a: 'u', c: 'Budynek dla kur na wsi' },
+    { w: 'suma', a: 'u', c: 'Wynik dodawania' },
+    { w: 'sukienka', a: 'u', c: 'Ubranie dla dziewczynki' },
+    { w: 'sufit', a: 'u', c: 'Górna część pokoju' },
+    { w: 'futro', a: 'u', c: 'Zimowe okrycie z futra' },
+    { w: 'furtka', a: 'u', c: 'Mała brama w ogrodzeniu' },
+    { w: 'kukułka', a: 'u', c: 'Ptak leśny, mówi ku-ku' },
+    { w: 'numer', a: 'u', c: 'Liczba identyfikująca, np. domu' },
+    { w: 'nutka', a: 'u', c: 'Symbol dźwięku w muzyce' },
+    { w: 'nurek', a: 'u', c: 'Osoba pływająca pod wodą' },
+    { w: 'puchar', a: 'u', c: 'Nagroda za zwycięstwo, w kształcie kielicha' },
+    { w: 'pudełko', a: 'u', c: 'Kartonowy lub plastikowy pojemnik z pokrywką' },
+    { w: 'puszek', a: 'u', c: 'Mięciutkie futerko' },
+    { w: 'turysta', a: 'u', c: 'Osoba podróżująca dla przyjemności' },
+    { w: 'tuba', a: 'u', c: 'Instrument dęty lub rura' },
+    { w: 'lupa', a: 'u', c: 'Szkło powiększające' },
+    { w: 'lustro', a: 'u', c: 'Gładka tafla, widzimy w nim swoje odbicie' },
+    { w: 'lusterko', a: 'u', c: 'Małe lustro' },
+    { w: 'muszelka', a: 'u', c: 'Twarda osłona ślimaka morskiego' },
+    { w: 'muzyka', a: 'u', c: 'Dźwięki ułożone w melodię' },
+    { w: 'szukać', a: 'u', c: 'Próbować coś znaleźć' },
+    { w: 'szczur', a: 'u', c: 'Duży szary gryzoń' },
+    { w: 'wujek', a: 'u', c: 'Brat mamy lub taty' },
+    { w: 'kulka', a: 'u', c: 'Mała okrągła rzecz' },
+    { w: 'gulasz', a: 'u', c: 'Mięsne danie z sosem, węgierskie' },
+    { w: 'klucz', a: 'u', c: 'Metalowy przedmiot do otwierania zamków' },
+    { w: 'kurz', a: 'u', c: 'Szary pył osiadający na meblach' },
+    { w: 'ubranie', a: 'u', c: 'Rzeczy, które nosimy' },
+    { w: 'ulubiony', a: 'u', c: 'Najbardziej lubiany' },
+    { w: 'buda', a: 'u', c: 'Domek dla psa' },
+    { w: 'rudy', a: 'u', c: 'Kolor ceglasty, np. rudy lis' },
+    { w: 'duma', a: 'u', c: 'Uczucie, gdy coś nam wychodzi świetnie' },
+    { w: 'puma', a: 'u', c: 'Duży kot z Ameryki Południowej' },
+    { w: 'mundur', a: 'u', c: 'Strój służbowy, np. policjanta' },
+    { w: 'chmura', a: 'u', c: 'Biały kłąb na niebie' },
+  ],
+  a_e: [
+    // Ą words
+    { w: 'ząb', a: 'ą', c: 'Jest ich w ustach dużo, boli gdy go nie myjemy' },
+    { w: 'ząbek', a: 'ą', c: 'Mały ząb lub ząbek czosnku' },
+    { w: 'dąb', a: 'ą', c: 'Drzewo, z którego pochodzi żołądź' },
+    { w: 'mąka', a: 'ą', c: 'Biały proszek do pieczenia ciast' },
+    { w: 'wąż', a: 'ą', c: 'Długie zwierzę bez nóg, pełza po ziemi' },
+    { w: 'trąba', a: 'ą', c: 'Nos słonia albo instrument muzyczny' },
+    { w: 'trąbka', a: 'ą', c: 'Mały instrument dęty' },
+    { w: 'ląd', a: 'ą', c: 'Teren ziemi, w odróżnieniu od morza' },
+    { w: 'kąpiel', a: 'ą', c: 'Mycie się w wannie lub basenie' },
+    { w: 'prąd', a: 'ą', c: 'Energia elektryczna w przewodach' },
+    { w: 'wąs', a: 'ą', c: 'Włosy nad górną wargą u mężczyzn' },
+    { w: 'gąska', a: 'ą', c: 'Młoda gęś' },
+    { w: 'sąsiad', a: 'ą', c: 'Osoba mieszkająca obok nas' },
+    { w: 'kąt', a: 'ą', c: 'Miejsce, gdzie spotykają się dwie ściany' },
+    { w: 'mądrość', a: 'ą', c: 'Wiedza i doświadczenie' },
+    { w: 'bądź', a: 'ą', c: 'Rozkaz: ... grzeczny!' },
+    { w: 'kąsać', a: 'ą', c: 'Gryźć, np. pies kąsa' },
+    { w: 'pąk', a: 'ą', c: 'Zawinięty kwiat, jeszcze nierozwinięty' },
+    { w: 'wąski', a: 'ą', c: 'Nie szeroki, ciasny' },
+    { w: 'kąsek', a: 'ą', c: 'Mały kawałek czegoś, kęs jedzenia' },
+    { w: 'mąż', a: 'ą', c: 'Mężczyzna, który jest żonaty' },
+    { w: 'łąka', a: 'ą', c: 'Zielony teren z trawą, pasą się tam krowy' },
+    { w: 'dąbrowa', a: 'ą', c: 'Las dębowy, gaj dębowy' },
+    { w: 'kłąb', a: 'ą', c: 'Splątana masa, np. kłąb wełny' },
+    { w: 'gałąź', a: 'ą', c: 'Odgałęzienie drzewa' },
+    { w: 'żołądź', a: 'ą', c: 'Owoc dębu, zjada go wiewiórka' },
+    { w: 'sąd', a: 'ą', c: 'Instytucja, gdzie rozstrzyga się spory' },
+    { w: 'rząd', a: 'ą', c: 'Rada ministrów' },
+    { w: 'mądrala', a: 'ą', c: 'Ktoś, kto udaje mądrego' },
+    { w: 'ssą', a: 'ą', c: 'Tak robią niemowlęta przy butelce — ... mleko' },
+    { w: 'idą', a: 'ą', c: 'Oni właśnie ... do szkoły' },
+    { w: 'mają', a: 'ą', c: 'Oni ... nową zabawkę' },
+    { w: 'piszą', a: 'ą', c: 'Dzieci ... list do babci' },
+    { w: 'kąpać', a: 'ą', c: 'Myć kogoś lub coś w wodzie' },
+    { w: 'oglądać', a: 'ą', c: 'Patrzeć na coś, np. film w telewizji' },
+    { w: 'wąsaty', a: 'ą', c: 'Mający wąsy' },
+    { w: 'błądzić', a: 'ą', c: 'Nie wiedzieć, którędy iść, gubić drogę' },
+    { w: 'ciągnąć', a: 'ą', c: 'Przemieszczać coś do siebie siłą' },
+    { w: 'piąty', a: 'ą', c: 'Kolejność po czwartym' },
+    { w: 'dziesiąty', a: 'ą', c: 'Kolejność po dziewiątym' },
+    // Ę words
+    { w: 'ręka', a: 'ę', c: 'Kończyna górna, ma pięć palców' },
+    { w: 'ręcznik', a: 'ę', c: 'Tym wycieramy się po kąpieli' },
+    { w: 'tęcza', a: 'ę', c: 'Kolorowe łuki na niebie po deszczu' },
+    { w: 'gęś', a: 'ę', c: 'Biały ptak domowy, większy od kaczki' },
+    { w: 'wędka', a: 'ę', c: 'Kij z żyłką do łowienia ryb' },
+    { w: 'pędzel', a: 'ę', c: 'Narzędzie do malowania' },
+    { w: 'lęk', a: 'ę', c: 'Uczucie strachu' },
+    { w: 'gęsty', a: 'ę', c: 'Zbity, nie rzadki, np. gęsty las' },
+    { w: 'dębina', a: 'ę', c: 'Drewno z dębu' },
+    { w: 'pięta', a: 'ę', c: 'Tylna, dolna część stopy' },
+    { w: 'pępek', a: 'ę', c: 'Ślad po pępowinie na brzuchu' },
+    { w: 'dęby', a: 'ę', c: 'Liczba mnoga od dąb' },
+    { w: 'więcej', a: 'ę', c: 'Nie mniej, ale...' },
+    { w: 'wędlina', a: 'ę', c: 'Mięso przetworzone: szynka, kiełbasa' },
+    { w: 'węgiel', a: 'ę', c: 'Czarny kamień do ogrzewania' },
+    { w: 'pęk', a: 'ę', c: 'Wiązka czegoś, np. kwiatów' },
+    { w: 'sędzia', a: 'ę', c: 'Osoba rozstrzygająca spory' },
+    { w: 'węzeł', a: 'ę', c: 'Supełek na sznurku' },
+    { w: 'pęcherz', a: 'ę', c: 'Bańka na skórze lub narząd' },
+    { w: 'pędzić', a: 'ę', c: 'Biec bardzo szybko' },
+    { w: 'kęs', a: 'ę', c: 'Jeden kawałek jedzenia w ustach' },
+    { w: 'zęby', a: 'ę', c: 'Liczba mnoga od ząb' },
+    { w: 'Węgry', a: 'ę', c: 'Kraj sąsiadujący z Polską na południu' },
+    { w: 'gęstwina', a: 'ę', c: 'Gęsty las, zarośla' },
+    { w: 'wędrowiec', a: 'ę', c: 'Ktoś, kto podróżuje pieszo' },
+    { w: 'bęben', a: 'ę', c: 'Instrument perkusyjny' },
+    { w: 'pęczek', a: 'ę', c: 'Mały pęk, np. pietruszki' },
+    { w: 'mięso', a: 'ę', c: 'Część zwierzęcia używana do jedzenia' },
+    { w: 'święto', a: 'ę', c: 'Dzień wolny, uroczystość' },
+    { w: 'gęba', a: 'ę', c: 'Potoczne słowo na twarz' },
+    { w: 'pętla', a: 'ę', c: 'Pętelka lub trasa autobusowa w kółko' },
+    { w: 'pięść', a: 'ę', c: 'Zaciśnięta ręka' },
+    { w: 'węższy', a: 'ę', c: 'Stopień wyższy od wąski' },
+    { w: 'piękny', a: 'ę', c: 'Bardzo ładny' },
+    { w: 'kępa', a: 'ę', c: 'Grupka roślin rosnących blisko siebie, np. kępa traw' },
+    { w: 'męczyć', a: 'ę', c: 'Wyczerpywać kogoś lub siebie' },
+    { w: 'dęty', a: 'ę', c: 'Instrument muzyczny grany ustami' },
+    { w: 'więzień', a: 'ę', c: 'Osoba pozbawiona wolności' },
+    { w: 'rękaw', a: 'ę', c: 'Część bluzki lub koszuli, w której jest ręka' },
+    { w: 'mędrzec', a: 'ę', c: 'Bardzo mądra osoba' },
+  ]
+};
+
+const CHAPTER_INFO = {
+  rz_z: { name: 'RZ i Ż', emoji: '🌊', badge: '🌊 RZ i Ż' },
+  ch_h: { name: 'CH i H', emoji: '🏠', badge: '🏠 CH i H' },
+  u_o: { name: 'U i Ó', emoji: '⛰️', badge: '⛰️ U i Ó' },
+  a_e: { name: 'ą i ę', emoji: '⭐', badge: '⭐ ą i ę' }
+};
+
+const WRONG_LETTERS = {
+  'rz': 'ż',
+  'ż': 'rz',
+  'ch': 'h',
+  'h': 'ch',
+  'ó': 'u',
+  'u': 'ó',
+  'ą': 'on',
+  'ę': 'en'
+};
+
+const EXPLANATIONS = {
+  'rz': 'piszemy przez RZ',
+  'ż': 'piszemy przez Ż',
+  'ch': 'piszemy przez CH',
+  'h': 'piszemy przez samo H',
+  'ó': 'piszemy przez Ó',
+  'u': 'piszemy przez U',
+  'ą': 'piszemy przez Ą',
+  'ę': 'piszemy przez Ę'
+};
+
+// ===========================
+// STAN GRY
+// ===========================
+let state = {};
+let stats = loadStats();
+let playerName = loadPlayerName();
+
+// ===========================
+// LOCALSTORAGE
+// ===========================
+function loadStats() {
+  try {
+    const s = JSON.parse(localStorage.getItem('mistrzOrtografii') || '{}');
+    return {
+      totalPoints: s.totalPoints || 0,
+      bestStreak: s.bestStreak || 0,
+      gamesPlayed: s.gamesPlayed || 0,
+      chapterGames: s.chapterGames || { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 }
+    };
+  } catch {
+    return { totalPoints: 0, bestStreak: 0, gamesPlayed: 0, chapterGames: { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 } };
+  }
+}
+function saveStats() { try { localStorage.setItem('mistrzOrtografii', JSON.stringify(stats)); } catch {} }
+function loadPlayerName() { try { return localStorage.getItem('mistrzOrtografiiName') || ''; } catch { return ''; } }
+function savePlayerNameToStorage(name) { try { localStorage.setItem('mistrzOrtografiiName', name); } catch {} }
+
+// ===========================
+// IMIĘ I MENU
+// ===========================
+function savePlayerName() {
+  const input = document.getElementById('playerNameInput');
+  let name = input.value.trim();
+  if (!name) name = 'Mistrzu';
+  if (name.length > 20) name = name.substring(0, 20);
+  playerName = name;
+  savePlayerNameToStorage(name);
+  document.getElementById('greetingName').textContent = name;
+  showScreen('home');
+}
+function changeName() {
+  document.getElementById('playerNameInput').value = playerName === 'Mistrzu' ? '' : playerName;
+  showScreen('welcome');
+  setTimeout(() => document.getElementById('playerNameInput').focus(), 100);
+}
+function updateHomeStats() {
+  document.getElementById('totalPoints').textContent = stats.totalPoints;
+  document.getElementById('bestStreak').textContent = stats.bestStreak;
+  document.getElementById('gamesPlayed').textContent = stats.gamesPlayed;
+  document.getElementById('greetingName').textContent = playerName || 'Mistrzu';
+}
+function updateChapterProgress() {
+  for (const ch of Object.keys(CHAPTER_INFO)) {
+    const el = document.getElementById('progress-' + ch);
+    if (el) el.textContent = 'Rund: ' + (stats.chapterGames[ch] || 0);
+  }
+}
+
+function confirmReset() { document.getElementById('confirmModal').classList.add('active'); }
+function closeModal() { document.getElementById('confirmModal').classList.remove('active'); }
+function doReset() {
+  stats = { totalPoints: 0, bestStreak: 0, gamesPlayed: 0, chapterGames: { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 } };
+  playerName = '';
+  try { localStorage.removeItem('mistrzOrtografii'); localStorage.removeItem('mistrzOrtografiiName'); } catch {}
+  saveStats();
+  closeModal();
+  document.getElementById('playerNameInput').value = '';
+  showScreen('welcome');
+}
+
+// ===========================
+// TROFEA
+// ===========================
+const TROPHIES = [
+  { id: 'first', icon: '🌟', name: 'Pierwsza gra', check: () => stats.gamesPlayed >= 1 },
+  { id: 'streak5', icon: '🔥', name: 'Seria 5', check: () => stats.bestStreak >= 5 },
+  { id: 'streak10', icon: '⚡', name: 'Seria 10', check: () => stats.bestStreak >= 10 },
+  { id: 'rzz', icon: '🌊', name: 'Mistrz RZ-Ż', check: () => (stats.chapterGames.rz_z || 0) >= 3 },
+  { id: 'chh', icon: '🏠', name: 'Mistrz CH-H', check: () => (stats.chapterGames.ch_h || 0) >= 3 },
+  { id: 'uo', icon: '⛰️', name: 'Mistrz U-Ó', check: () => (stats.chapterGames.u_o || 0) >= 3 },
+  { id: 'ae', icon: '⭐', name: 'Mistrz ą-ę', check: () => (stats.chapterGames.a_e || 0) >= 3 },
+  { id: 'points500', icon: '💎', name: '500 punktów', check: () => stats.totalPoints >= 500 },
+  { id: 'master', icon: '👑', name: 'Mistrz Ortografii', check: () =>
+    Object.values(stats.chapterGames || {}).every(v => v >= 3) && stats.totalPoints >= 500
+  }
+];
+function renderTrophies() {
+  document.getElementById('trophyGrid').innerHTML = TROPHIES.map(t => {
+    const e = t.check();
+    return `<div class="trophy ${e ? 'earned' : ''}"><div class="trophy-icon">${e ? t.icon : '🔒'}</div><div class="trophy-name">${t.name}</div></div>`;
+  }).join('');
+}
+
+// ===========================
+// NAWIGACJA
+// ===========================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'home') { updateHomeStats(); updateChapterProgress(); }
+  if (id === 'chapters') updateChapterProgress();
+  if (id === 'trophies') renderTrophies();
+}
+function selectChapter(ch) {
+  state.chapter = ch;
+  document.getElementById('modesTitle').textContent = CHAPTER_INFO[ch].name + ' — wybierz tryb';
+  showScreen('modes');
+}
+function quitGame() {
+  showScreen('home');
+}
+function repeatGame() {
+  startGame(state.mode);
+}
+
+// ===========================
+// POMOCNICZE
+// ===========================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function makeGap(word, answer) {
+  const lw = word.toLowerCase();
+  const la = answer.toLowerCase();
+  const idx = lw.indexOf(la);
+  if (idx === -1) return word;
+  const before = word.substring(0, idx);
+  const after = word.substring(idx + answer.length);
+  const underscores = '_'.repeat(answer.length);
+  return before + underscores + after;
+}
+
+function makeWrongVariant(word, answer) {
+  const wrong = WRONG_LETTERS[answer.toLowerCase()];
+  if (!wrong) return word + '?';
+  return word.replace(answer.toLowerCase(), wrong).replace(answer.toUpperCase(), wrong.charAt(0).toUpperCase() + wrong.slice(1));
+}
+
+function formatGapDisplay(gappedWord) {
+  // Add spaces between letters for readability
+  return gappedWord.split('').join(' ');
+}
+
+function getCheers() {
+  return ['Brawo! 🎉', 'Świetnie! ⭐', 'Super! 👏', 'Mistrzostwo! 🔥', 'Tak trzymaj! 💪', 'Genialnie! 🚀', 'Pięknie! ✨', 'Dokładnie! 🎯'];
+}
+
+// ===========================
+// ROZPOCZĘCIE GRY + ŻYCIA
+// ===========================
+let autoCheckTimer = null;
+
+function startGame(mode) {
+  state.mode = mode;
+  state.score = 0;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.correct = 0;
+  state.questionIdx = 0;
+  state.totalQuestions = 10;
+  state.lives = 3;
+  state.hintLevel = 0;
+  state.wrongAttempts = 0;
+  state.locked = false;
+
+  let pool = WORDS[state.chapter];
+  if (mode === 'crossword') {
+    pool = pool.filter(w => w.c && w.c.length > 0);
+  }
+  state.questions = shuffle(pool).slice(0, 10);
+  
+  const screenId = mode === 'fill' ? 'fillGame' : (mode === 'choose' ? 'chooseGame' : 'crosswordGame');
+  const badge = CHAPTER_INFO[state.chapter].badge;
+  if (mode === 'fill') document.getElementById('fillChapterBadge').textContent = badge;
+  if (mode === 'choose') document.getElementById('chooseChapterBadge').textContent = badge;
+  if (mode === 'crossword') document.getElementById('crosswordChapterBadge').textContent = badge;
+  
+  showScreen(screenId);
+  
+  if (mode === 'fill') nextFillQuestion();
+  if (mode === 'choose') nextChooseQuestion();
+  if (mode === 'crossword') nextCrosswordQuestion();
+}
+
+function renderLives() {
+  return '❤️'.repeat(state.lives) + '🤍'.repeat(3 - state.lives);
+}
+
+function loseLife() {
+  state.lives--;
+  const livesElements = ['fillLives', 'chooseLives', 'crosswordLives'];
+  livesElements.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = renderLives();
+      el.classList.add('danger');
+      setTimeout(() => el.classList.remove('danger'), 600);
+    }
+  });
+  return state.lives <= 0;
+}
+
+// ===========================
+// TRYB 1: UZUPEŁNIJ LITERĘ
+// ===========================
+function nextFillQuestion() {
+  if (state.questionIdx >= state.totalQuestions) return endGame(false);
+  
+  state.locked = false;
+  const q = state.questions[state.questionIdx];
+  state.currentQuestion = q;
+  state.questionIdx++;
+  
+  const gapped = makeGap(q.w, q.a);
+  document.getElementById('fillWord').textContent = formatGapDisplay(gapped);
+  document.getElementById('fillCounter').textContent = `Pytanie ${state.questionIdx} z ${state.totalQuestions}`;
+  document.getElementById('fillScore').textContent = state.score;
+  document.getElementById('fillStreak').textContent = state.streak;
+  document.getElementById('fillLives').textContent = renderLives();
+  document.getElementById('fillProgressFill').style.width = (state.questionIdx / state.totalQuestions * 100) + '%';
+  
+  const input = document.getElementById('fillInput');
+  input.value = '';
+  input.disabled = false;
+  input.classList.remove('correct', 'wrong');
+  document.getElementById('fillNextBtn').classList.remove('show');
+  document.getElementById('fillFeedback').classList.remove('show');
+  
+  setTimeout(() => {
+    input.focus();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+function submitFillAnswer() {
+  if (state.locked) return;
+  const input = document.getElementById('fillInput');
+  const val = input.value.trim().toLowerCase();
+  if (!val) { input.focus(); return; }
+  
+  state.locked = true;
+  clearTimeout(autoCheckTimer);
+  
+  const q = state.currentQuestion;
+  const correct = val === q.a.toLowerCase();
+  
+  input.disabled = true;
+  const feedback = document.getElementById('fillFeedback');
+  
+  if (correct) {
+    input.classList.add('correct');
+    state.streak++; state.correct++;
+    let points = 10;
+    if (state.streak >= 3) points += 5;
+    if (state.streak >= 5) points += 5;
+    if (state.streak >= 10) points += 10;
+    state.score += points;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const cheers = getCheers();
+    feedback.innerHTML = `+${points} pkt · ${cheers[Math.floor(Math.random() * cheers.length)]}<div class="feedback-explanation">Poprawnie: <strong>${q.w}</strong></div>`;
+    feedback.classList.add('show');
+    document.getElementById('fillScore').textContent = state.score;
+    document.getElementById('fillStreak').textContent = state.streak;
+    setTimeout(() => nextFillQuestion(), 1500);
+  } else {
+    input.classList.add('wrong');
+    state.streak = 0;
+    feedback.innerHTML = `❌ Brakowało: <strong>${q.a.toUpperCase()}</strong><div class="feedback-explanation">Poprawne słowo: <strong>${q.w}</strong> — ${EXPLANATIONS[q.a]}</div>`;
+    feedback.classList.add('show');
+    document.getElementById('fillStreak').textContent = state.streak;
+    
+    const dead = loseLife();
+    if (dead) {
+      setTimeout(() => endGame(true), 2400);
+    } else {
+      setTimeout(() => nextFillQuestion(), 2400);
+    }
+  }
+}
+
+// Auto-check po wpisaniu
+document.getElementById('fillInput').addEventListener('input', (e) => {
+  if (state.locked) return;
+  clearTimeout(autoCheckTimer);
+  const val = e.target.value.trim();
+  const expectedLen = state.currentQuestion ? state.currentQuestion.a.length : 0;
+  if (val.length >= expectedLen && val.length > 0) {
+    autoCheckTimer = setTimeout(() => submitFillAnswer(), 600);
+  }
+});
+
+document.getElementById('fillInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    clearTimeout(autoCheckTimer);
+    submitFillAnswer();
+  }
+});
+
+// ===========================
+// TRYB 2: WYBÓR POPRAWNEJ PISOWNI
+// ===========================
+function nextChooseQuestion() {
+  if (state.questionIdx >= state.totalQuestions) return endGame(false);
+  
+  state.locked = false;
+  const q = state.questions[state.questionIdx];
+  state.currentQuestion = q;
+  state.questionIdx++;
+  
+  const correctWord = q.w;
+  const wrongWord = makeWrongVariant(q.w, q.a);
+  const options = shuffle([correctWord, wrongWord]);
+  
+  let clue = q.c || 'Wybierz poprawną pisownię';
+  document.getElementById('chooseClue').textContent = clue;
+  document.getElementById('chooseCounter').textContent = `Pytanie ${state.questionIdx} z ${state.totalQuestions}`;
+  document.getElementById('chooseScore').textContent = state.score;
+  document.getElementById('chooseStreak').textContent = state.streak;
+  document.getElementById('chooseLives').textContent = renderLives();
+  document.getElementById('chooseProgressFill').style.width = (state.questionIdx / state.totalQuestions * 100) + '%';
+  
+  const answersDiv = document.getElementById('chooseAnswers');
+  answersDiv.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = opt;
+    btn.onclick = () => handleChooseAnswer(opt, btn, correctWord);
+    answersDiv.appendChild(btn);
+  });
+  
+  document.getElementById('chooseNextBtn').classList.remove('show');
+  document.getElementById('chooseFeedback').classList.remove('show');
+}
+
+function handleChooseAnswer(chosen, btn, correctWord) {
+  if (state.locked) return;
+  state.locked = true;
+  const correct = chosen === correctWord;
+  const q = state.currentQuestion;
+  
+  document.querySelectorAll('#chooseAnswers .answer-btn').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correctWord) b.classList.add('correct');
+  });
+  
+  const feedback = document.getElementById('chooseFeedback');
+  
+  if (correct) {
+    state.streak++; state.correct++;
+    let points = 10;
+    if (state.streak >= 3) points += 5;
+    if (state.streak >= 5) points += 5;
+    if (state.streak >= 10) points += 10;
+    state.score += points;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const cheers = getCheers();
+    feedback.innerHTML = `+${points} pkt · ${cheers[Math.floor(Math.random() * cheers.length)]}<div class="feedback-explanation"><strong>${correctWord}</strong> — ${EXPLANATIONS[q.a]}</div>`;
+    feedback.classList.add('show');
+    document.getElementById('chooseScore').textContent = state.score;
+    document.getElementById('chooseStreak').textContent = state.streak;
+    setTimeout(() => nextChooseQuestion(), 1400);
+  } else {
+    btn.classList.add('wrong');
+    state.streak = 0;
+    feedback.innerHTML = `❌ Niestety<div class="feedback-explanation">Poprawnie: <strong>${correctWord}</strong> — ${EXPLANATIONS[q.a]}</div>`;
+    feedback.classList.add('show');
+    document.getElementById('chooseStreak').textContent = state.streak;
+    
+    const dead = loseLife();
+    if (dead) {
+      setTimeout(() => endGame(true), 2400);
+    } else {
+      setTimeout(() => nextChooseQuestion(), 2400);
+    }
+  }
+}
+
+// ===========================
+// TRYB 3: KRZYŻÓWKA
+// ===========================
+function renderCrosswordSlots(word, mask) {
+  let html = '';
+  for (let i = 0; i < word.length; i++) {
+    if (mask[i]) {
+      html += `<span class="slot revealed">${word[i].toUpperCase()}</span>`;
+    } else {
+      html += '<span class="slot">_</span>';
+    }
+  }
+  return html;
+}
+
+function nextCrosswordQuestion() {
+  if (state.questionIdx >= state.totalQuestions) return endGame(false);
+  
+  state.locked = false;
+  const q = state.questions[state.questionIdx];
+  state.currentQuestion = q;
+  state.questionIdx++;
+  state.hintLevel = 0;
+  state.wrongAttempts = 0;
+  state.revealMask = new Array(q.w.length).fill(false);
+  
+  document.getElementById('crosswordClue').textContent = q.c;
+  document.getElementById('crosswordSlots').innerHTML = renderCrosswordSlots(q.w, state.revealMask);
+  document.getElementById('crosswordLetterCount').textContent = q.w.length;
+  document.getElementById('crosswordCounter').textContent = `Pytanie ${state.questionIdx} z ${state.totalQuestions}`;
+  document.getElementById('crosswordScore').textContent = state.score;
+  document.getElementById('crosswordStreak').textContent = state.streak;
+  document.getElementById('crosswordLives').textContent = renderLives();
+  document.getElementById('crosswordProgressFill').style.width = (state.questionIdx / state.totalQuestions * 100) + '%';
+  
+  const input = document.getElementById('crosswordInput');
+  input.value = '';
+  input.disabled = false;
+  input.classList.remove('correct', 'wrong');
+  document.getElementById('crosswordNextBtn').classList.remove('show');
+  document.getElementById('crosswordHintBtn').style.display = 'block';
+  document.getElementById('crosswordHintBtn').textContent = '💡 Pokaż podpowiedź';
+  document.getElementById('crosswordHint').style.display = 'none';
+  document.getElementById('crosswordFeedback').classList.remove('show');
+  
+  setTimeout(() => {
+    input.focus();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+function submitCrosswordAnswer() {
+  if (state.locked) return;
+  const input = document.getElementById('crosswordInput');
+  const val = input.value.trim().toLowerCase();
+  if (!val) { input.focus(); return; }
+  
+  clearTimeout(autoCheckTimer);
+  const q = state.currentQuestion;
+  const correct = val === q.w.toLowerCase();
+  const feedback = document.getElementById('crosswordFeedback');
+  
+  if (correct) {
+    state.locked = true;
+    input.disabled = true;
+    input.classList.add('correct');
+    document.getElementById('crosswordHintBtn').style.display = 'none';
+    
+    state.streak++; state.correct++;
+    let points = 15;
+    if (state.streak >= 3) points += 5;
+    if (state.streak >= 5) points += 10;
+    if (state.hintLevel > 0) points = Math.max(5, points - (5 * state.hintLevel));
+    state.score += points;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const cheers = getCheers();
+    feedback.innerHTML = `+${points} pkt · ${cheers[Math.floor(Math.random() * cheers.length)]}<div class="feedback-explanation">Hasło: <strong>${q.w.toUpperCase()}</strong> — ${EXPLANATIONS[q.a]}</div>`;
+    feedback.classList.add('show');
+    
+    document.getElementById('crosswordSlots').innerHTML = renderCrosswordSlots(q.w, q.w.split('').map(() => true));
+    document.getElementById('crosswordScore').textContent = state.score;
+    document.getElementById('crosswordStreak').textContent = state.streak;
+    setTimeout(() => nextCrosswordQuestion(), 1800);
+  } else {
+    input.classList.add('wrong');
+    state.wrongAttempts++;
+    
+    if (state.wrongAttempts >= 2) {
+      state.locked = true;
+      input.disabled = true;
+      document.getElementById('crosswordHintBtn').style.display = 'none';
+      state.streak = 0;
+      feedback.innerHTML = `❌ Niestety<div class="feedback-explanation">Hasło: <strong>${q.w.toUpperCase()}</strong> — ${EXPLANATIONS[q.a]}</div>`;
+      feedback.classList.add('show');
+      document.getElementById('crosswordSlots').innerHTML = renderCrosswordSlots(q.w, q.w.split('').map(() => true));
+      document.getElementById('crosswordStreak').textContent = state.streak;
+      
+      const dead = loseLife();
+      if (dead) {
+        setTimeout(() => endGame(true), 2700);
+      } else {
+        setTimeout(() => nextCrosswordQuestion(), 2700);
+      }
+    } else {
+      feedback.innerHTML = `🤔 Spróbuj jeszcze raz!<div class="feedback-explanation">Możesz użyć podpowiedzi 💡</div>`;
+      feedback.classList.add('show');
+      setTimeout(() => {
+        input.classList.remove('wrong');
+        input.value = '';
+        input.focus();
+      }, 1000);
+    }
+  }
+}
+
+function showCrosswordHint() {
+  const q = state.currentQuestion;
+  state.hintLevel++;
+  
+  if (state.hintLevel === 1) {
+    state.revealMask[0] = true;
+    document.getElementById('crosswordSlots').innerHTML = renderCrosswordSlots(q.w, state.revealMask);
+    document.getElementById('crosswordHint').textContent = `💡 Pierwsza litera: ${q.w.charAt(0).toUpperCase()}`;
+    document.getElementById('crosswordHint').style.display = 'block';
+    document.getElementById('crosswordHintBtn').textContent = '💡 Pokaż jeszcze podpowiedź';
+  } else if (state.hintLevel === 2) {
+    state.revealMask[0] = true;
+    state.revealMask[q.w.length - 1] = true;
+    if (q.w.length >= 5) {
+      state.revealMask[Math.floor(q.w.length / 2)] = true;
+    }
+    document.getElementById('crosswordSlots').innerHTML = renderCrosswordSlots(q.w, state.revealMask);
+    const revealed = q.w.split('').map((c, i) => state.revealMask[i] ? c.toUpperCase() : '_').join(' ');
+    document.getElementById('crosswordHint').textContent = `💡 ${revealed}`;
+    document.getElementById('crosswordHint').style.display = 'block';
+    document.getElementById('crosswordHintBtn').style.display = 'none';
+  }
+  
+  document.getElementById('crosswordInput').focus();
+}
+
+document.getElementById('crosswordInput').addEventListener('input', (e) => {
+  if (state.locked) return;
+  clearTimeout(autoCheckTimer);
+  const val = e.target.value.trim();
+  const expectedLen = state.currentQuestion ? state.currentQuestion.w.length : 0;
+  if (val.length >= expectedLen && val.length > 0) {
+    autoCheckTimer = setTimeout(() => submitCrosswordAnswer(), 700);
+  }
+});
+
+document.getElementById('crosswordInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    clearTimeout(autoCheckTimer);
+    submitCrosswordAnswer();
+  }
+});
+
+// ===========================
+// KONIEC GRY
+// ===========================
+function endGame(gameOver) {
+  stats.totalPoints += state.score;
+  if (state.bestStreak > stats.bestStreak) stats.bestStreak = state.bestStreak;
+  stats.gamesPlayed++;
+  if (!stats.chapterGames) stats.chapterGames = { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 };
+  if (!gameOver) {
+    stats.chapterGames[state.chapter] = (stats.chapterGames[state.chapter] || 0) + 1;
+  }
+  saveStats();
+  
+  const total = state.questionIdx || state.totalQuestions;
+  const ratio = total > 0 ? state.correct / total : 0;
+  
+  let stars, emoji, title, message;
+  
+  if (gameOver) {
+    stars = '💔';
+    emoji = '😢';
+    title = 'Skończyły się życia!';
+    message = `Nie martw się, ${playerName}. Spróbuj jeszcze raz — z każdą grą idzie Ci coraz lepiej!`;
+  } else if (ratio >= 0.9) {
+    stars = '⭐⭐⭐'; emoji = '🏆';
+    title = `Niesamowite, ${playerName}!`;
+    message = 'Jesteś prawdziwym mistrzem ortografii!';
+  } else if (ratio >= 0.7) {
+    stars = '⭐⭐'; emoji = '🌟';
+    title = `Świetnie, ${playerName}!`;
+    message = 'Bardzo dobry wynik! Jeszcze odrobinę i osiągniesz mistrzostwo.';
+  } else if (ratio >= 0.5) {
+    stars = '⭐⭐'; emoji = '🎉';
+    title = `Dobra robota, ${playerName}!`;
+    message = 'Idzie Ci coraz lepiej! Jeszcze trochę i będziesz mistrzem.';
+  } else {
+    stars = '⭐'; emoji = '💪';
+    title = `Spokojnie, ${playerName}!`;
+    message = 'Im więcej ćwiczysz, tym lepiej Ci pójdzie. Spróbuj jeszcze raz!';
+  }
+  
+  document.getElementById('resultStars').textContent = stars;
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultMessage').textContent = message;
+  document.getElementById('finalScore').textContent = state.score;
+  document.getElementById('finalCorrect').textContent = `${state.correct} / ${total}`;
+  document.getElementById('finalStreak').textContent = state.bestStreak;
+  
+  showScreen('results');
+}
+
+
+// ===========================
+// START
+// ===========================
+if (playerName) {
+  document.getElementById('greetingName').textContent = playerName;
+  updateHomeStats();
+  showScreen('home');
+} else {
+  showScreen('welcome');
+  setTimeout(() => document.getElementById('playerNameInput').focus(), 100);
+}
+
+document.getElementById('playerNameInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') savePlayerName();
+});
+</script>
+</body>
+</html>
