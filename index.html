@@ -117,6 +117,7 @@
 
   .next-btn { background: #ffd700; color: #4c2a85; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 12px; width: 100%; display: none; }
   .next-btn.show { display: block; animation: pop 0.3s ease; }
+  #crosswordSubmitBtn { margin-left: auto; margin-right: auto; width: fit-content; min-width: 220px; }
 
   .badge.lives { background: rgba(239,68,68,0.25); font-size: 16px; letter-spacing: 1px; }
   .badge.lives.danger { background: rgba(239,68,68,0.45); animation: shake 0.5s; }
@@ -158,7 +159,7 @@
 
   <div class="screen" id="chapters">
     <div class="title" style="font-size:24px">Wybierz temat</div>
-    <div class="subtitle">Każdy rozdział to inne trudne litery</div>
+    <div class="subtitle">Wybierz ortografię albo gramatykę</div>
     <div class="mode-grid">
       <button class="chapter-card" onclick="selectChapter('rz_z')">
         <div class="chapter-icon">🌊</div>
@@ -190,6 +191,14 @@
           <div class="chapter-name">ą i ę</div>
           <div class="chapter-desc">Ząb czy ręka? 80 słów</div>
           <div class="chapter-progress" id="progress-a_e">Rund: 0</div>
+        </div>
+      </button>
+      <button class="chapter-card" onclick="selectSpeechTopic()">
+        <div class="chapter-icon">🧩</div>
+        <div class="chapter-info">
+          <div class="chapter-name">Części mowy</div>
+          <div class="chapter-desc">Rzeczownik, czasownik czy przymiotnik? 300 słów</div>
+          <div class="chapter-progress" id="progress-speech">Rund: 0</div>
         </div>
       </button>
     </div>
@@ -227,6 +236,28 @@
         <div class="mode-info">
           <div class="mode-name">Krzyżówka</div>
           <div class="mode-desc">Odgadnij hasło z zagadki</div>
+        </div>
+      </button>
+    </div>
+    <button class="btn btn-secondary" onclick="showScreen('chapters')">← Wróć</button>
+  </div>
+
+  <div class="screen" id="speechModes">
+    <div class="title" style="font-size:24px">Części mowy</div>
+    <div class="subtitle">Wybierz poziom trudności</div>
+    <div class="mode-grid">
+      <button class="mode-card" onclick="startGame('speech')">
+        <div class="mode-icon">🧩</div>
+        <div class="mode-info">
+          <div class="mode-name">Łatwiejszy</div>
+          <div class="mode-desc">Nazwy części mowy są zawsze w tym samym miejscu</div>
+        </div>
+      </button>
+      <button class="mode-card" onclick="startGame('speechHard')">
+        <div class="mode-icon">🎲</div>
+        <div class="mode-info">
+          <div class="mode-name">Trudniejszy</div>
+          <div class="mode-desc">Przy każdym pytaniu przyciski zmieniają miejsca</div>
         </div>
       </button>
     </div>
@@ -302,6 +333,26 @@
     <button class="btn btn-secondary" style="margin-top:14px" onclick="quitGame()">← Wyjdź</button>
   </div>
 
+
+  <div class="screen" id="speechGame">
+    <div class="game-header">
+      <div class="badge chapter" id="speechChapterBadge">🧩 Części mowy</div>
+      <div class="badge">⭐ <span id="speechScore">0</span></div>
+      <div class="badge">🔥 <span id="speechStreak">0</span></div>
+      <div class="badge lives" id="speechLives">❤️❤️❤️</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="speechProgressFill" style="width: 0%"></div></div>
+    <div class="question-card">
+      <div class="question-prompt">Do jakiej części mowy należy ten wyraz?</div>
+      <div class="question-word" id="speechWord">kot</div>
+      <div class="question-hint" id="speechCounter">Pytanie 1 z 10</div>
+    </div>
+    <div class="answers" id="speechAnswers"></div>
+    <button class="next-btn" id="speechNextBtn" onclick="nextSpeechQuestion()">Dalej →</button>
+    <div class="feedback" id="speechFeedback"></div>
+    <button class="btn btn-secondary" style="margin-top:14px" onclick="quitGame()">← Wyjdź</button>
+  </div>
+
   <div class="screen" id="results">
     <div class="result-emoji" id="resultEmoji">🎉</div>
     <div class="result-title" id="resultTitle">Świetnie!</div>
@@ -314,7 +365,7 @@
     </div>
     <div class="menu">
       <button class="btn" onclick="repeatGame()"><span class="btn-icon">🔄</span>Zagraj jeszcze raz</button>
-      <button class="btn btn-secondary" onclick="showScreen('modes')"><span class="btn-icon">🎯</span>Zmień tryb</button>
+      <button class="btn btn-secondary" onclick="showScreen((state.mode === 'speech' || state.mode === 'speechHard') ? 'speechModes' : 'modes')"><span class="btn-icon">🎯</span>Zmień tryb</button>
       <button class="btn btn-secondary" onclick="showScreen('home')"><span class="btn-icon">🏠</span>Do menu</button>
     </div>
   </div>
@@ -718,6 +769,316 @@ const WORDS = {
   ]
 };
 
+
+const SPEECH_WORDS = [
+  { w: 'pies', type: 'rzeczownik' },
+  { w: 'kot', type: 'rzeczownik' },
+  { w: 'dom', type: 'rzeczownik' },
+  { w: 'szkoła', type: 'rzeczownik' },
+  { w: 'książka', type: 'rzeczownik' },
+  { w: 'zeszyt', type: 'rzeczownik' },
+  { w: 'ołówek', type: 'rzeczownik' },
+  { w: 'plecak', type: 'rzeczownik' },
+  { w: 'ławka', type: 'rzeczownik' },
+  { w: 'krzesło', type: 'rzeczownik' },
+  { w: 'stół', type: 'rzeczownik' },
+  { w: 'okno', type: 'rzeczownik' },
+  { w: 'drzwi', type: 'rzeczownik' },
+  { w: 'lampka', type: 'rzeczownik' },
+  { w: 'kwiat', type: 'rzeczownik' },
+  { w: 'drzewo', type: 'rzeczownik' },
+  { w: 'las', type: 'rzeczownik' },
+  { w: 'rzeka', type: 'rzeczownik' },
+  { w: 'jezioro', type: 'rzeczownik' },
+  { w: 'morze', type: 'rzeczownik' },
+  { w: 'góra', type: 'rzeczownik' },
+  { w: 'droga', type: 'rzeczownik' },
+  { w: 'samochód', type: 'rzeczownik' },
+  { w: 'rower', type: 'rzeczownik' },
+  { w: 'pociąg', type: 'rzeczownik' },
+  { w: 'samolot', type: 'rzeczownik' },
+  { w: 'statek', type: 'rzeczownik' },
+  { w: 'miasto', type: 'rzeczownik' },
+  { w: 'wieś', type: 'rzeczownik' },
+  { w: 'ogród', type: 'rzeczownik' },
+  { w: 'podwórko', type: 'rzeczownik' },
+  { w: 'piłka', type: 'rzeczownik' },
+  { w: 'zabawka', type: 'rzeczownik' },
+  { w: 'lalka', type: 'rzeczownik' },
+  { w: 'klocek', type: 'rzeczownik' },
+  { w: 'gra', type: 'rzeczownik' },
+  { w: 'komputer', type: 'rzeczownik' },
+  { w: 'telefon', type: 'rzeczownik' },
+  { w: 'zegarek', type: 'rzeczownik' },
+  { w: 'but', type: 'rzeczownik' },
+  { w: 'czapka', type: 'rzeczownik' },
+  { w: 'kurtka', type: 'rzeczownik' },
+  { w: 'spodnie', type: 'rzeczownik' },
+  { w: 'koszulka', type: 'rzeczownik' },
+  { w: 'ręka', type: 'rzeczownik' },
+  { w: 'noga', type: 'rzeczownik' },
+  { w: 'głowa', type: 'rzeczownik' },
+  { w: 'oko', type: 'rzeczownik' },
+  { w: 'ucho', type: 'rzeczownik' },
+  { w: 'nos', type: 'rzeczownik' },
+  { w: 'bułka', type: 'rzeczownik' },
+  { w: 'chleb', type: 'rzeczownik' },
+  { w: 'ser', type: 'rzeczownik' },
+  { w: 'mleko', type: 'rzeczownik' },
+  { w: 'woda', type: 'rzeczownik' },
+  { w: 'zupa', type: 'rzeczownik' },
+  { w: 'jabłko', type: 'rzeczownik' },
+  { w: 'banan', type: 'rzeczownik' },
+  { w: 'marchewka', type: 'rzeczownik' },
+  { w: 'ziemniak', type: 'rzeczownik' },
+  { w: 'talerz', type: 'rzeczownik' },
+  { w: 'kubek', type: 'rzeczownik' },
+  { w: 'łyżka', type: 'rzeczownik' },
+  { w: 'widelec', type: 'rzeczownik' },
+  { w: 'nóż', type: 'rzeczownik' },
+  { w: 'mama', type: 'rzeczownik' },
+  { w: 'tata', type: 'rzeczownik' },
+  { w: 'brat', type: 'rzeczownik' },
+  { w: 'siostra', type: 'rzeczownik' },
+  { w: 'babcia', type: 'rzeczownik' },
+  { w: 'dziadek', type: 'rzeczownik' },
+  { w: 'dziecko', type: 'rzeczownik' },
+  { w: 'uczeń', type: 'rzeczownik' },
+  { w: 'nauczyciel', type: 'rzeczownik' },
+  { w: 'lekarz', type: 'rzeczownik' },
+  { w: 'kucharz', type: 'rzeczownik' },
+  { w: 'strażak', type: 'rzeczownik' },
+  { w: 'policjant', type: 'rzeczownik' },
+  { w: 'ptak', type: 'rzeczownik' },
+  { w: 'ryba', type: 'rzeczownik' },
+  { w: 'koń', type: 'rzeczownik' },
+  { w: 'krowa', type: 'rzeczownik' },
+  { w: 'mysz', type: 'rzeczownik' },
+  { w: 'żaba', type: 'rzeczownik' },
+  { w: 'motyl', type: 'rzeczownik' },
+  { w: 'pszczoła', type: 'rzeczownik' },
+  { w: 'słońce', type: 'rzeczownik' },
+  { w: 'księżyc', type: 'rzeczownik' },
+  { w: 'gwiazda', type: 'rzeczownik' },
+  { w: 'chmura', type: 'rzeczownik' },
+  { w: 'deszcz', type: 'rzeczownik' },
+  { w: 'śnieg', type: 'rzeczownik' },
+  { w: 'wiatr', type: 'rzeczownik' },
+  { w: 'ogień', type: 'rzeczownik' },
+  { w: 'czas', type: 'rzeczownik' },
+  { w: 'dzień', type: 'rzeczownik' },
+  { w: 'noc', type: 'rzeczownik' },
+  { w: 'ranek', type: 'rzeczownik' },
+  { w: 'wieczór', type: 'rzeczownik' },
+  { w: 'wakacje', type: 'rzeczownik' },
+  { w: 'przygoda', type: 'rzeczownik' },
+  { w: 'biegać', type: 'czasownik' },
+  { w: 'skakać', type: 'czasownik' },
+  { w: 'chodzić', type: 'czasownik' },
+  { w: 'iść', type: 'czasownik' },
+  { w: 'jechać', type: 'czasownik' },
+  { w: 'pływać', type: 'czasownik' },
+  { w: 'latać', type: 'czasownik' },
+  { w: 'siedzieć', type: 'czasownik' },
+  { w: 'stać', type: 'czasownik' },
+  { w: 'leżeć', type: 'czasownik' },
+  { w: 'spać', type: 'czasownik' },
+  { w: 'budzić', type: 'czasownik' },
+  { w: 'jeść', type: 'czasownik' },
+  { w: 'pić', type: 'czasownik' },
+  { w: 'gotować', type: 'czasownik' },
+  { w: 'piec', type: 'czasownik' },
+  { w: 'kroić', type: 'czasownik' },
+  { w: 'myć', type: 'czasownik' },
+  { w: 'czesać', type: 'czasownik' },
+  { w: 'ubierać', type: 'czasownik' },
+  { w: 'rysować', type: 'czasownik' },
+  { w: 'malować', type: 'czasownik' },
+  { w: 'pisać', type: 'czasownik' },
+  { w: 'czytać', type: 'czasownik' },
+  { w: 'liczyć', type: 'czasownik' },
+  { w: 'uczyć', type: 'czasownik' },
+  { w: 'myśleć', type: 'czasownik' },
+  { w: 'pytać', type: 'czasownik' },
+  { w: 'odpowiadać', type: 'czasownik' },
+  { w: 'mówić', type: 'czasownik' },
+  { w: 'krzyczeć', type: 'czasownik' },
+  { w: 'szeptać', type: 'czasownik' },
+  { w: 'patrzeć', type: 'czasownik' },
+  { w: 'widzieć', type: 'czasownik' },
+  { w: 'słyszeć', type: 'czasownik' },
+  { w: 'słuchać', type: 'czasownik' },
+  { w: 'wąchać', type: 'czasownik' },
+  { w: 'dotykać', type: 'czasownik' },
+  { w: 'brać', type: 'czasownik' },
+  { w: 'dawać', type: 'czasownik' },
+  { w: 'nosić', type: 'czasownik' },
+  { w: 'rzucać', type: 'czasownik' },
+  { w: 'łapać', type: 'czasownik' },
+  { w: 'kopać', type: 'czasownik' },
+  { w: 'ciągnąć', type: 'czasownik' },
+  { w: 'pchać', type: 'czasownik' },
+  { w: 'otwierać', type: 'czasownik' },
+  { w: 'zamykać', type: 'czasownik' },
+  { w: 'szukać', type: 'czasownik' },
+  { w: 'znajdować', type: 'czasownik' },
+  { w: 'gubić', type: 'czasownik' },
+  { w: 'kupować', type: 'czasownik' },
+  { w: 'sprzedawać', type: 'czasownik' },
+  { w: 'płacić', type: 'czasownik' },
+  { w: 'budować', type: 'czasownik' },
+  { w: 'naprawiać', type: 'czasownik' },
+  { w: 'psuć', type: 'czasownik' },
+  { w: 'sprzątać', type: 'czasownik' },
+  { w: 'odkurzać', type: 'czasownik' },
+  { w: 'zamiatać', type: 'czasownik' },
+  { w: 'prać', type: 'czasownik' },
+  { w: 'prasować', type: 'czasownik' },
+  { w: 'podlewać', type: 'czasownik' },
+  { w: 'sadzić', type: 'czasownik' },
+  { w: 'rosnąć', type: 'czasownik' },
+  { w: 'kwitnąć', type: 'czasownik' },
+  { w: 'spadać', type: 'czasownik' },
+  { w: 'lecieć', type: 'czasownik' },
+  { w: 'padać', type: 'czasownik' },
+  { w: 'świecić', type: 'czasownik' },
+  { w: 'grzać', type: 'czasownik' },
+  { w: 'marznąć', type: 'czasownik' },
+  { w: 'lubić', type: 'czasownik' },
+  { w: 'kochać', type: 'czasownik' },
+  { w: 'chcieć', type: 'czasownik' },
+  { w: 'musieć', type: 'czasownik' },
+  { w: 'móc', type: 'czasownik' },
+  { w: 'umieć', type: 'czasownik' },
+  { w: 'znać', type: 'czasownik' },
+  { w: 'pamiętać', type: 'czasownik' },
+  { w: 'zapominać', type: 'czasownik' },
+  { w: 'pomagać', type: 'czasownik' },
+  { w: 'dziękować', type: 'czasownik' },
+  { w: 'przepraszać', type: 'czasownik' },
+  { w: 'czekać', type: 'czasownik' },
+  { w: 'zaczynać', type: 'czasownik' },
+  { w: 'kończyć', type: 'czasownik' },
+  { w: 'wygrywać', type: 'czasownik' },
+  { w: 'przegrywać', type: 'czasownik' },
+  { w: 'ćwiczyć', type: 'czasownik' },
+  { w: 'tańczyć', type: 'czasownik' },
+  { w: 'śpiewać', type: 'czasownik' },
+  { w: 'grać', type: 'czasownik' },
+  { w: 'odpoczywać', type: 'czasownik' },
+  { w: 'podróżować', type: 'czasownik' },
+  { w: 'wracać', type: 'czasownik' },
+  { w: 'zostawać', type: 'czasownik' },
+  { w: 'śmiać', type: 'czasownik' },
+  { w: 'płakać', type: 'czasownik' },
+  { w: 'duży', type: 'przymiotnik' },
+  { w: 'mały', type: 'przymiotnik' },
+  { w: 'wysoki', type: 'przymiotnik' },
+  { w: 'niski', type: 'przymiotnik' },
+  { w: 'długi', type: 'przymiotnik' },
+  { w: 'krótki', type: 'przymiotnik' },
+  { w: 'szeroki', type: 'przymiotnik' },
+  { w: 'wąski', type: 'przymiotnik' },
+  { w: 'gruby', type: 'przymiotnik' },
+  { w: 'chudy', type: 'przymiotnik' },
+  { w: 'ciężki', type: 'przymiotnik' },
+  { w: 'lekki', type: 'przymiotnik' },
+  { w: 'twardy', type: 'przymiotnik' },
+  { w: 'miękki', type: 'przymiotnik' },
+  { w: 'ciepły', type: 'przymiotnik' },
+  { w: 'zimny', type: 'przymiotnik' },
+  { w: 'gorący', type: 'przymiotnik' },
+  { w: 'chłodny', type: 'przymiotnik' },
+  { w: 'mokry', type: 'przymiotnik' },
+  { w: 'suchy', type: 'przymiotnik' },
+  { w: 'czysty', type: 'przymiotnik' },
+  { w: 'brudny', type: 'przymiotnik' },
+  { w: 'jasny', type: 'przymiotnik' },
+  { w: 'ciemny', type: 'przymiotnik' },
+  { w: 'biały', type: 'przymiotnik' },
+  { w: 'czarny', type: 'przymiotnik' },
+  { w: 'czerwony', type: 'przymiotnik' },
+  { w: 'niebieski', type: 'przymiotnik' },
+  { w: 'zielony', type: 'przymiotnik' },
+  { w: 'żółty', type: 'przymiotnik' },
+  { w: 'różowy', type: 'przymiotnik' },
+  { w: 'fioletowy', type: 'przymiotnik' },
+  { w: 'pomarańczowy', type: 'przymiotnik' },
+  { w: 'brązowy', type: 'przymiotnik' },
+  { w: 'szary', type: 'przymiotnik' },
+  { w: 'złoty', type: 'przymiotnik' },
+  { w: 'srebrny', type: 'przymiotnik' },
+  { w: 'ładny', type: 'przymiotnik' },
+  { w: 'brzydki', type: 'przymiotnik' },
+  { w: 'nowy', type: 'przymiotnik' },
+  { w: 'stary', type: 'przymiotnik' },
+  { w: 'młody', type: 'przymiotnik' },
+  { w: 'szybki', type: 'przymiotnik' },
+  { w: 'wolny', type: 'przymiotnik' },
+  { w: 'głośny', type: 'przymiotnik' },
+  { w: 'cichy', type: 'przymiotnik' },
+  { w: 'wesoły', type: 'przymiotnik' },
+  { w: 'smutny', type: 'przymiotnik' },
+  { w: 'dobry', type: 'przymiotnik' },
+  { w: 'zły', type: 'przymiotnik' },
+  { w: 'miły', type: 'przymiotnik' },
+  { w: 'niemiły', type: 'przymiotnik' },
+  { w: 'grzeczny', type: 'przymiotnik' },
+  { w: 'niegrzeczny', type: 'przymiotnik' },
+  { w: 'mądry', type: 'przymiotnik' },
+  { w: 'głupi', type: 'przymiotnik' },
+  { w: 'łatwy', type: 'przymiotnik' },
+  { w: 'trudny', type: 'przymiotnik' },
+  { w: 'prosty', type: 'przymiotnik' },
+  { w: 'krzywy', type: 'przymiotnik' },
+  { w: 'okrągły', type: 'przymiotnik' },
+  { w: 'kwadratowy', type: 'przymiotnik' },
+  { w: 'ostry', type: 'przymiotnik' },
+  { w: 'tępy', type: 'przymiotnik' },
+  { w: 'słodki', type: 'przymiotnik' },
+  { w: 'kwaśny', type: 'przymiotnik' },
+  { w: 'słony', type: 'przymiotnik' },
+  { w: 'gorzki', type: 'przymiotnik' },
+  { w: 'pyszny', type: 'przymiotnik' },
+  { w: 'niesmaczny', type: 'przymiotnik' },
+  { w: 'głodny', type: 'przymiotnik' },
+  { w: 'syty', type: 'przymiotnik' },
+  { w: 'zdrowy', type: 'przymiotnik' },
+  { w: 'chory', type: 'przymiotnik' },
+  { w: 'silny', type: 'przymiotnik' },
+  { w: 'słaby', type: 'przymiotnik' },
+  { w: 'odważny', type: 'przymiotnik' },
+  { w: 'strachliwy', type: 'przymiotnik' },
+  { w: 'spokojny', type: 'przymiotnik' },
+  { w: 'nerwowy', type: 'przymiotnik' },
+  { w: 'pracowity', type: 'przymiotnik' },
+  { w: 'leniwy', type: 'przymiotnik' },
+  { w: 'bogaty', type: 'przymiotnik' },
+  { w: 'biedny', type: 'przymiotnik' },
+  { w: 'pełny', type: 'przymiotnik' },
+  { w: 'pusty', type: 'przymiotnik' },
+  { w: 'otwarty', type: 'przymiotnik' },
+  { w: 'zamknięty', type: 'przymiotnik' },
+  { w: 'daleki', type: 'przymiotnik' },
+  { w: 'bliski', type: 'przymiotnik' },
+  { w: 'pierwszy', type: 'przymiotnik' },
+  { w: 'ostatni', type: 'przymiotnik' },
+  { w: 'prawy', type: 'przymiotnik' },
+  { w: 'lewy', type: 'przymiotnik' },
+  { w: 'bezpieczny', type: 'przymiotnik' },
+  { w: 'niebezpieczny', type: 'przymiotnik' },
+  { w: 'ważny', type: 'przymiotnik' },
+  { w: 'ciekawy', type: 'przymiotnik' },
+  { w: 'nudny', type: 'przymiotnik' },
+  { w: 'śmieszny', type: 'przymiotnik' }
+];
+
+const SPEECH_EXPLANATIONS = {
+  rzeczownik: 'Rzeczownik odpowiada na pytanie: kto? co?',
+  czasownik: 'Czasownik mówi, co ktoś robi albo co się dzieje.',
+  przymiotnik: 'Przymiotnik odpowiada na pytanie: jaki? jaka? jakie?'
+};
+
 const CHAPTER_INFO = {
   rz_z: { name: 'RZ i Ż', emoji: '🌊', badge: '🌊 RZ i Ż' },
   ch_h: { name: 'CH i H', emoji: '🏠', badge: '🏠 CH i H' },
@@ -764,10 +1125,11 @@ function loadStats() {
       totalPoints: s.totalPoints || 0,
       bestStreak: s.bestStreak || 0,
       gamesPlayed: s.gamesPlayed || 0,
-      chapterGames: s.chapterGames || { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 }
+      chapterGames: s.chapterGames || { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 },
+      modeGames: s.modeGames || {}
     };
   } catch {
-    return { totalPoints: 0, bestStreak: 0, gamesPlayed: 0, chapterGames: { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 } };
+    return { totalPoints: 0, bestStreak: 0, gamesPlayed: 0, chapterGames: { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 }, modeGames: {} };
   }
 }
 function saveStats() { try { localStorage.setItem('mistrzOrtografii', JSON.stringify(stats)); } catch {} }
@@ -803,12 +1165,17 @@ function updateChapterProgress() {
     const el = document.getElementById('progress-' + ch);
     if (el) el.textContent = 'Rund: ' + (stats.chapterGames[ch] || 0);
   }
+  const speechEl = document.getElementById('progress-speech');
+  if (speechEl) {
+    const mg = stats.modeGames || {};
+    speechEl.textContent = 'Łatwy: ' + (mg.speech || 0) + ' · Trudny: ' + (mg.speechHard || 0);
+  }
 }
 
 function confirmReset() { document.getElementById('confirmModal').classList.add('active'); }
 function closeModal() { document.getElementById('confirmModal').classList.remove('active'); }
 function doReset() {
-  stats = { totalPoints: 0, bestStreak: 0, gamesPlayed: 0, chapterGames: { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 } };
+  stats = { totalPoints: 0, bestStreak: 0, gamesPlayed: 0, chapterGames: { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 }, modeGames: {} };
   playerName = '';
   try { localStorage.removeItem('mistrzOrtografii'); localStorage.removeItem('mistrzOrtografiiName'); } catch {}
   saveStats();
@@ -838,6 +1205,11 @@ const TROPHIES = [
   { id: 'uo', icon: '⛰️', name: 'Mistrz U-Ó', desc: 'Ukończ 3 rundy w rozdziale U i Ó.', check: () => (stats.chapterGames.u_o || 0) >= 3 },
   { id: 'ae', icon: '⭐', name: 'Mistrz ą-ę', desc: 'Ukończ 3 rundy w rozdziale ą i ę.', check: () => (stats.chapterGames.a_e || 0) >= 3 },
 
+
+  { id: 'speech1', icon: '🧩', name: 'Gramatyczny start', desc: 'Ukończ rundę w częściach mowy.', check: () => (((stats.modeGames || {}).speech || 0) + ((stats.modeGames || {}).speechHard || 0)) >= 1 },
+  { id: 'speech3', icon: '📚', name: 'Znawca części mowy', desc: 'Ukończ 3 rundy w częściach mowy.', check: () => (((stats.modeGames || {}).speech || 0) + ((stats.modeGames || {}).speechHard || 0)) >= 3 },
+  { id: 'speech10', icon: '🧠', name: 'Profesor słówek', desc: 'Ukończ 10 rund w częściach mowy.', check: () => (((stats.modeGames || {}).speech || 0) + ((stats.modeGames || {}).speechHard || 0)) >= 10 },
+  { id: 'speechHard3', icon: '🎲', name: 'Tasowacz pojęć', desc: 'Ukończ 3 rundy w trudniejszych częściach mowy.', check: () => ((stats.modeGames || {}).speechHard || 0) >= 3 },
   { id: 'points500', icon: '💎', name: '500 punktów', desc: 'Zdobądź łącznie 500 punktów.', check: () => stats.totalPoints >= 500 },
   { id: 'master', icon: '🏆', name: 'Mistrz Ortografii', desc: 'Ukończ po 3 rundy w każdym rozdziale i zdobądź 500 punktów.', check: () =>
     Object.values(stats.chapterGames || {}).every(v => v >= 3) && stats.totalPoints >= 500
@@ -871,8 +1243,12 @@ function selectChapter(ch) {
 
   showScreen('modes');
 }
+function selectSpeechTopic() {
+  state.chapter = null;
+  showScreen('speechModes');
+}
 function quitGame() {
-  showScreen('modes');
+  showScreen((state.mode === 'speech' || state.mode === 'speechHard') ? 'speechModes' : 'modes');
 }
 function repeatGame() {
   startGame(state.mode);
@@ -1002,23 +1378,25 @@ function startGame(mode) {
   state.wrongAttempts = 0;
   state.locked = false;
 
-  let pool = WORDS[state.chapter];
+  let pool = (mode === 'speech' || mode === 'speechHard') ? SPEECH_WORDS : WORDS[state.chapter];
   if (mode === 'crossword') {
     pool = pool.filter(w => w.c && w.c.length > 0);
   }
   state.questions = shuffle(pool).slice(0, 10);
   
-  const screenId = (mode === 'fill' || mode === 'hardfill') ? 'fillGame' : (mode === 'choose' ? 'chooseGame' : 'crosswordGame');
-  const badge = CHAPTER_INFO[state.chapter].badge;
+  const screenId = (mode === 'fill' || mode === 'hardfill') ? 'fillGame' : (mode === 'choose' ? 'chooseGame' : (mode === 'crossword' ? 'crosswordGame' : 'speechGame'));
+  const badge = (mode === 'speech' || mode === 'speechHard') ? (mode === 'speechHard' ? '🎲 Części mowy — trudniejszy' : '🧩 Części mowy — łatwiejszy') : CHAPTER_INFO[state.chapter].badge;
   if (mode === 'fill') document.getElementById('fillChapterBadge').textContent = badge;
   if (mode === 'choose') document.getElementById('chooseChapterBadge').textContent = badge;
   if (mode === 'crossword') document.getElementById('crosswordChapterBadge').textContent = badge;
+  if (mode === 'speech' || mode === 'speechHard') document.getElementById('speechChapterBadge').textContent = badge;
   
   showScreen(screenId);
   
   if (mode === 'fill' || mode === 'hardfill') nextFillQuestion();
   if (mode === 'choose') nextChooseQuestion();
   if (mode === 'crossword') nextCrosswordQuestion();
+  if (mode === 'speech' || mode === 'speechHard') nextSpeechQuestion();
 }
 
 function renderLives() {
@@ -1027,7 +1405,7 @@ function renderLives() {
 
 function loseLife() {
   state.lives--;
-  const livesElements = ['fillLives', 'chooseLives', 'crosswordLives'];
+  const livesElements = ['fillLives', 'chooseLives', 'crosswordLives', 'speechLives'];
   livesElements.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -1409,6 +1787,87 @@ document.getElementById('crosswordInput').addEventListener('keypress', (e) => {
   }
 });
 
+
+// ===========================
+// TRYB 4: CZĘŚCI MOWY
+// ===========================
+function nextSpeechQuestion() {
+  if (state.questionIdx >= state.totalQuestions) return endGame(false);
+
+  state.locked = false;
+  const q = state.questions[state.questionIdx];
+  state.currentQuestion = q;
+  state.questionIdx++;
+
+  document.getElementById('speechWord').textContent = q.w;
+  document.getElementById('speechCounter').textContent = `Pytanie ${state.questionIdx} z ${state.totalQuestions}`;
+  document.getElementById('speechScore').textContent = state.score;
+  document.getElementById('speechStreak').textContent = state.streak;
+  document.getElementById('speechLives').textContent = renderLives();
+  document.getElementById('speechProgressFill').style.width = (state.questionIdx / state.totalQuestions * 100) + '%';
+
+  const answersDiv = document.getElementById('speechAnswers');
+  answersDiv.innerHTML = '';
+  const speechTypes = state.mode === 'speechHard'
+    ? shuffle(['rzeczownik', 'czasownik', 'przymiotnik'])
+    : ['rzeczownik', 'czasownik', 'przymiotnik'];
+  speechTypes.forEach(type => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    btn.onclick = () => handleSpeechAnswer(type, btn);
+    answersDiv.appendChild(btn);
+  });
+
+  document.getElementById('speechNextBtn').classList.remove('show');
+  document.getElementById('speechFeedback').classList.remove('show');
+}
+
+function handleSpeechAnswer(chosenType, btn) {
+  if (state.locked) return;
+  state.locked = true;
+
+  const q = state.currentQuestion;
+  const correct = chosenType === q.type;
+  const feedback = document.getElementById('speechFeedback');
+
+  document.querySelectorAll('#speechAnswers .answer-btn').forEach(b => {
+    b.disabled = true;
+    if (b.textContent.toLowerCase() === q.type) b.classList.add('correct');
+  });
+
+  if (correct) {
+    playSound('correct');
+    state.streak++; state.correct++;
+    let points = 10;
+    if (state.streak >= 3) points += 5;
+    if (state.streak >= 5) points += 5;
+    if (state.streak >= 10) points += 10;
+    state.score += points;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const cheers = getCheers();
+    feedback.innerHTML = `+${points} pkt · ${cheers[Math.floor(Math.random() * cheers.length)]}<div class="feedback-explanation"><strong>${q.w}</strong> to ${q.type}. ${SPEECH_EXPLANATIONS[q.type]}</div>`;
+    feedback.classList.add('show');
+    document.getElementById('speechScore').textContent = state.score;
+    document.getElementById('speechStreak').textContent = state.streak;
+    setTimeout(() => nextSpeechQuestion(), 3000);
+  } else {
+    playSound('wrong');
+    btn.classList.add('wrong');
+    state.streak = 0;
+    feedback.innerHTML = `❌ Nie tym razem<div class="feedback-explanation"><strong>${q.w}</strong> to ${q.type}. ${SPEECH_EXPLANATIONS[q.type]}</div>`;
+    feedback.classList.add('show');
+    document.getElementById('speechStreak').textContent = state.streak;
+
+    const dead = loseLife();
+    if (dead) {
+      setTimeout(() => endGame(true), 4800);
+    } else {
+      setTimeout(() => nextSpeechQuestion(), 4800);
+    }
+  }
+}
+
 // ===========================
 // KONIEC GRY
 // ===========================
@@ -1417,8 +1876,13 @@ function endGame(gameOver) {
   if (state.bestStreak > stats.bestStreak) stats.bestStreak = state.bestStreak;
   stats.gamesPlayed++;
   if (!stats.chapterGames) stats.chapterGames = { rz_z: 0, ch_h: 0, u_o: 0, a_e: 0 };
+  if (!stats.modeGames) stats.modeGames = {};
   if (!gameOver) {
-    stats.chapterGames[state.chapter] = (stats.chapterGames[state.chapter] || 0) + 1;
+    if (state.mode === 'speech' || state.mode === 'speechHard') {
+      stats.modeGames[state.mode] = (stats.modeGames[state.mode] || 0) + 1;
+    } else {
+      stats.chapterGames[state.chapter] = (stats.chapterGames[state.chapter] || 0) + 1;
+    }
   }
   saveStats();
   
