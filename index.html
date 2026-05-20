@@ -294,7 +294,7 @@
       <input type="text" id="crosswordInput" class="type-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-size:24px">
       <div class="type-hint">Wpisz całe hasło</div>
     </div>
-    <button class="btn" id="crosswordSubmitBtn" onclick="submitCrosswordAnswer()" style="display:none">✓ Sprawdź</button>
+    <button class="btn" id="crosswordSubmitBtn" onclick="submitCrosswordAnswer()">✓ Sprawdź</button>
     <button class="hint-btn" id="crosswordHintBtn" onclick="showCrosswordHint()" style="display:none">💡 Podpowiedź</button>
     <div class="hint-display" id="crosswordHint" style="display:none"></div>
     <button class="next-btn" id="crosswordNextBtn" onclick="nextCrosswordQuestion()">Dalej →</button>
@@ -1295,6 +1295,7 @@ function nextCrosswordQuestion() {
   input.disabled = false;
   input.classList.remove('correct', 'wrong');
   document.getElementById('crosswordNextBtn').classList.remove('show');
+  document.getElementById('crosswordSubmitBtn').style.display = 'flex';
   document.getElementById('crosswordHintBtn').style.display = 'block';
   document.getElementById('crosswordHintBtn').textContent = '💡 Pokaż podpowiedź';
   document.getElementById('crosswordHint').style.display = 'none';
@@ -1322,6 +1323,7 @@ function submitCrosswordAnswer() {
     state.locked = true;
     input.disabled = true;
     input.classList.add('correct');
+    document.getElementById('crosswordSubmitBtn').style.display = 'none';
     document.getElementById('crosswordHintBtn').style.display = 'none';
     
     state.streak++; state.correct++;
@@ -1347,6 +1349,7 @@ function submitCrosswordAnswer() {
     if (state.wrongAttempts >= 2) {
       state.locked = true;
       input.disabled = true;
+      document.getElementById('crosswordSubmitBtn').style.display = 'none';
       document.getElementById('crosswordHintBtn').style.display = 'none';
       state.streak = 0;
       feedback.innerHTML = `❌ Niestety<div class="feedback-explanation">Hasło: <strong>${q.w.toUpperCase()}</strong> — ${EXPLANATIONS[q.a]}</div>`;
@@ -1397,16 +1400,6 @@ function showCrosswordHint() {
   
   document.getElementById('crosswordInput').focus();
 }
-
-document.getElementById('crosswordInput').addEventListener('input', (e) => {
-  if (state.locked) return;
-  clearTimeout(autoCheckTimer);
-  const val = e.target.value.trim();
-  const expectedLen = state.currentQuestion ? state.currentQuestion.w.length : 0;
-  if (val.length >= expectedLen && val.length > 0) {
-    autoCheckTimer = setTimeout(() => submitCrosswordAnswer(), 700);
-  }
-});
 
 document.getElementById('crosswordInput').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
